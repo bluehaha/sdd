@@ -2,6 +2,13 @@
 
 namespace App\Jobs;
 
+use App\Enums\IssueStatus;
+use App\Models\Issue;
+use App\Models\IssueLog;
+use App\Services\ClaudeCodeService;
+use App\Services\IssueService;
+use App\Services\PreviewService;
+use App\Services\SlackService;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Bus\Dispatchable;
@@ -23,6 +30,86 @@ class ExecuteTaskJob implements ShouldQueue
 
     public function handle(): void
     {
-        // Implemented in Task 11
+        $issueService = app(IssueService::class);
+        $claudeService = app(ClaudeCodeService::class);
+        $slackService = app(SlackService::class);
+        $previewService = app(PreviewService::class);
+
+        $issue = Issue::where('github_issue_number', $this->issueNumber)->firstOrFail();
+
+        $isResume = $this->feedbackComment !== null;
+        $featureBranch = $issue->feature_branch ?? "feat/issue-{$this->issueNumber}";
+
+        if (!$issue->feature_branch) {
+            $issueService->saveFeatureBranch($issue, $featureBranch);
+        }
+
+        $issueService->transitionTo($issue, IssueStatus::Developing);
+
+        $workspacePath = $previewService->workspacePath($this->issueNumber);
+        $prompt = $isResume
+            ? $this->buildResumePrompt($issue, $this->feedbackComment)
+            : $this->buildFirstRunPrompt($issue, $featureBranch);
+
+        $sessionId = $issue->dev_session_id;
+
+        $result = $claudeService->execute($prompt, $workspacePath, $sessionId);
+
+        if ($result['session_id']) {
+            $issueService->saveDevSessionId($issue, $result['session_id']);
+        }
+
+        IssueLog::create([
+            'issue_id' => $issue->id,
+            'job_type' => 'execute_task',
+            'session_id' => $result['session_id'],
+            'prompt' => $prompt,
+            'output' => $result['output'],
+            'exit_code' => $result['exit_code'],
+            'duration_seconds' => $result['duration_seconds'],
+        ]);
+
+        if ($isResume) {
+            $slackService->notifyPm(
+                $issue->github_author,
+                "Issue #{$this->issueNumber} updated based on your feedback. Preview refreshed."
+            );
+        }
+
+        SetupPreviewJob::dispatch($this->issueNumber);
+    }
+
+    private function buildFirstRunPrompt(Issue $issue, string $featureBranch): string
+    {
+        return <<<PROMPT
+You are implementing a feature based on the following spec.
+
+## Issue #{$issue->github_issue_number}: {$issue->title}
+
+{$issue->body}
+
+## Instructions
+
+1. Create feature branch: {$featureBranch}
+2. Analyze the requirements
+3. Implement the feature in the waltily and/or waltily-frontend repos
+4. Write tests if applicable
+5. Commit and push all changes
+PROMPT;
+    }
+
+    private function buildResumePrompt(Issue $issue, string $feedback): string
+    {
+        return <<<PROMPT
+The PM has provided feedback on your implementation for issue #{$issue->github_issue_number}.
+
+## PM Feedback
+
+{$feedback}
+
+## Instructions
+
+Address the feedback, update the implementation, commit and push changes.
+PROMPT;
     }
 }
