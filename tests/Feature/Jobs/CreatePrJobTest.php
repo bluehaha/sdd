@@ -53,6 +53,13 @@ class CreatePrJobTest extends TestCase
         $this->app->instance(SlackService::class, $slackService);
 
         $job = new CreatePrJob(42);
+        $job->setGitRunner(function (array $command, string $cwd) {
+            if ($command === ['git', 'status', '--porcelain']) {
+                return ' M src/foo.php'; // has changes
+            }
+            return ''; // add, commit, push succeed
+        });
+
         $job->handle();
 
         $issue->refresh();
