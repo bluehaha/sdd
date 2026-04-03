@@ -15,6 +15,7 @@ class ClaudeCodeServiceTest extends TestCase
 
         $this->assertEquals([
             'claude', '--print', '--output-format', 'json', '--max-turns', '50',
+            '--model', 'sonnet',
             '-p', 'Validate this spec',
         ], $command);
     }
@@ -27,6 +28,7 @@ class ClaudeCodeServiceTest extends TestCase
 
         $this->assertEquals([
             'claude', '--print', '--output-format', 'json', '--max-turns', '50',
+            '--model', 'sonnet',
             '--resume', 'session-abc-123',
             '-p', 'Fix the bug',
         ], $command);
