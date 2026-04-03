@@ -46,7 +46,7 @@ class ExecuteTaskJob implements ShouldQueue
 
         $issueService->transitionTo($issue, IssueStatus::Developing);
 
-        $workspacePath = $previewService->workspacePath($this->issueNumber);
+        $issueWorkspacePath = $previewService->issueWorkspacePath($this->issueNumber);
 
         if (!$isResume) {
             $previewService->setup($this->issueNumber, $featureBranch);
@@ -58,7 +58,7 @@ class ExecuteTaskJob implements ShouldQueue
 
         $sessionId = $issue->dev_session_id;
 
-        $result = $claudeService->execute($prompt, $workspacePath, $sessionId);
+        $result = $claudeService->execute($prompt, $issueWorkspacePath, $sessionId);
 
         if ($result['session_id']) {
             $issueService->saveDevSessionId($issue, $result['session_id']);
