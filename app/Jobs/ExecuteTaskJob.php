@@ -74,12 +74,10 @@ class ExecuteTaskJob implements ShouldQueue
             'duration_seconds' => $result['duration_seconds'],
         ]);
 
-        if ($isResume) {
-            $slackService->notifyPm(
-                $issue->github_author,
-                "Issue #{$this->issueNumber} updated based on your feedback. Preview refreshed."
-            );
-        }
+        $slackService->notifyPm(
+            $issue->github_author,
+            "Issue #{$this->issueNumber} updated based on your feedback. Preview refreshed."
+        );
     }
 
     private function buildFirstRunPrompt(Issue $issue, string $featureBranch): string
