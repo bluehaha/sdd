@@ -17,7 +17,7 @@ class PreviewServiceTest extends TestCase
     public function test_workspace_path(): void
     {
         $service = new PreviewService('dev.waltily.tw', '/var/www/sdd/workspaces', '/etc/nginx/sites-enabled', '/var/www/sdd/main');
-        $path = $service->workspacePath(42);
+        $path = $service->issueWorkspacePath(42);
         $this->assertEquals('/var/www/sdd/workspaces/issue-42', $path);
     }
 }

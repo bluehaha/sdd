@@ -9,26 +9,23 @@ class PreviewService
 {
     private string $domain;
     private string $workspaceBasePath;
-    private string $mainRepoPath;
 
     public function __construct(
         ?string $domain = null,
         ?string $workspaceBasePath = null,
-        ?string $mainRepoPath = null
     ) {
         $this->domain = $domain ?? config('sdd.preview.domain');
         $this->workspaceBasePath = $workspaceBasePath ?? config('sdd.workspace_path');
-        $this->mainRepoPath = $mainRepoPath ?? config('sdd.repo.main_directory');
     }
 
     public function setup(int $issueNumber, string $featureBranch, ?string $clonedDbName = null): string
     {
         $subdomain = $this->generateSubdomain($issueNumber);
-        $workspace = $this->workspacePath($issueNumber);
+        $workspace = $this->issueWorkspacePath($issueNumber);
 
         $this->createWorkspace($workspace, $featureBranch);
         $this->configureEnv($workspace, $subdomain, $clonedDbName);
-        $this->installDependencies($workspace);
+        // $this->installDependencies($workspace);
 
         Log::info("Preview environment created", [
             'issue' => $issueNumber,
@@ -40,7 +37,7 @@ class PreviewService
 
     public function teardown(int $issueNumber): void
     {
-        $workspace = $this->workspacePath($issueNumber);
+        $workspace = $this->issueWorkspacePath($issueNumber);
 
         if (is_dir($workspace)) {
             $process = new Process(['rm', '-rf', $workspace]);
@@ -48,7 +45,7 @@ class PreviewService
         }
 
         foreach (config('sdd.github.target_repos') as $repo) {
-            $mainRepo = "{$this->mainRepoPath}/{$repo}";
+            $mainRepo = $this->mainWorkspacePath() . "/{$repo}";
             $prune = new Process(['git', '-C', $mainRepo, 'worktree', 'prune']);
             $prune->setTimeout(30);
             $prune->run();
@@ -62,13 +59,14 @@ class PreviewService
         return "issue-{$issueNumber}.{$this->domain}";
     }
 
-    public function workspacePath(int $issueNumber): string
+    public function issueWorkspacePath(int $issueNumber): string
     {
         return "{$this->workspaceBasePath}/issue-{$issueNumber}";
     }
 
+    private function mainWorkspacePath(): string
     {
-        return "{$this->nginxConfigBasePath}/sdd-issue-{$issueNumber}.conf";
+        return "{$this->workspaceBasePath}/main";
     }
 
     private function createWorkspace(string $workspace, string $featureBranch): void
@@ -76,7 +74,7 @@ class PreviewService
         @mkdir($workspace, 0755, true);
 
         foreach (config('sdd.github.target_repos') as $repo) {
-            $mainRepo = "{$this->mainRepoPath}/{$repo}";
+            $mainRepo = $this->mainWorkspacePath() . "/{$repo}";
             $worktreePath = "{$workspace}/{$repo}";
 
             $process = new Process(
@@ -120,10 +118,6 @@ class PreviewService
             $install = new Process(['yarn', 'install'], $frontendPath);
             $install->setTimeout(300);
             $install->run();
-
-            $build = new Process(['yarn', 'build'], $frontendPath);
-            $build->setTimeout(300);
-            $build->run();
         }
     }
 }

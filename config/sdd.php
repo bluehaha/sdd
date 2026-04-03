@@ -11,10 +11,6 @@ return [
         'target_repos' => ['waltily', 'waltily-frontend'],
     ],
 
-    'repo' => [
-        'main_directory' => env('REPO_MAIN_DIRECTORY'),
-    ],
-
     'slack' => [
         'webhook_url' => env('SLACK_WEBHOOK_URL'),
         'bot_token' => env('SLACK_BOT_TOKEN'),
@@ -28,7 +24,6 @@ return [
 
     'preview' => [
         'domain' => env('PREVIEW_DOMAIN', 'dev.waltily.tw'),
-        'workspace_path' => env('PREVIEW_WORKSPACE_PATH', '/var/www/sdd/workspaces'),
         'nginx_config_path' => env('NGINX_CONFIG_PATH', '/etc/nginx/sites-enabled'),
     ],
 
