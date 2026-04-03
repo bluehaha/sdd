@@ -9,18 +9,15 @@ class PreviewService
 {
     private string $domain;
     private string $workspaceBasePath;
-    private string $nginxConfigBasePath;
     private string $mainRepoPath;
 
     public function __construct(
         ?string $domain = null,
         ?string $workspaceBasePath = null,
-        ?string $nginxConfigBasePath = null,
         ?string $mainRepoPath = null
     ) {
         $this->domain = $domain ?? config('sdd.preview.domain');
         $this->workspaceBasePath = $workspaceBasePath ?? config('sdd.workspace_path');
-        $this->nginxConfigBasePath = $nginxConfigBasePath ?? config('sdd.preview.nginx_config_path');
         $this->mainRepoPath = $mainRepoPath ?? config('sdd.repo.main_directory');
     }
 
@@ -32,8 +29,6 @@ class PreviewService
         $this->createWorkspace($workspace, $featureBranch);
         $this->configureEnv($workspace, $subdomain, $clonedDbName);
         $this->installDependencies($workspace);
-        $this->writeNginxConfig($issueNumber);
-        $this->reloadNginx();
 
         Log::info("Preview environment created", [
             'issue' => $issueNumber,
@@ -46,16 +41,10 @@ class PreviewService
     public function teardown(int $issueNumber): void
     {
         $workspace = $this->workspacePath($issueNumber);
-        $nginxConfig = $this->nginxConfigPath($issueNumber);
 
         if (is_dir($workspace)) {
             $process = new Process(['rm', '-rf', $workspace]);
             $process->mustRun();
-        }
-
-        if (file_exists($nginxConfig)) {
-            @unlink($nginxConfig);
-            $this->reloadNginx();
         }
 
         foreach (config('sdd.github.target_repos') as $repo) {
@@ -78,34 +67,8 @@ class PreviewService
         return "{$this->workspaceBasePath}/issue-{$issueNumber}";
     }
 
-    public function nginxConfigPath(int $issueNumber): string
     {
         return "{$this->nginxConfigBasePath}/sdd-issue-{$issueNumber}.conf";
-    }
-
-    public function generateNginxConfig(int $issueNumber): string
-    {
-        $subdomain = $this->generateSubdomain($issueNumber);
-        $workspace = $this->workspacePath($issueNumber);
-
-        return <<<NGINX
-server {
-    listen 80;
-    server_name {$subdomain};
-    root {$workspace}/waltily/public;
-    index index.php;
-
-    location / {
-        try_files \$uri \$uri/ /index.php?\$query_string;
-    }
-
-    location ~ \.php$ {
-        fastcgi_pass unix:/var/run/php/php-fpm.sock;
-        fastcgi_param SCRIPT_FILENAME \$realpath_root\$fastcgi_script_name;
-        include fastcgi_params;
-    }
-}
-NGINX;
     }
 
     private function createWorkspace(string $workspace, string $featureBranch): void
@@ -162,18 +125,5 @@ NGINX;
             $build->setTimeout(300);
             $build->run();
         }
-    }
-
-    private function writeNginxConfig(int $issueNumber): void
-    {
-        $config = $this->generateNginxConfig($issueNumber);
-        $path = $this->nginxConfigPath($issueNumber);
-        file_put_contents($path, $config);
-    }
-
-    private function reloadNginx(): void
-    {
-        $process = new Process(['sudo', 'nginx', '-s', 'reload']);
-        $process->run();
     }
 }
