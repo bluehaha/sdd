@@ -15,6 +15,16 @@ class CreatePrJobTest extends TestCase
 {
     use RefreshDatabase;
 
+    protected function setUp(): void
+    {
+        parent::setUp();
+        config(['sdd.github.target_repos' => ['waltily', 'waltily-frontend']]);
+        config(['sdd.github.sdd_repo' => 'sdd']);
+        config(['sdd.github.token' => 'test-token']);
+        config(['sdd.github.owner' => 'Waltily-Inc']);
+        config(['sdd.workspace_path' => '/tmp/workspaces']);
+    }
+
     public function test_creates_pr_on_target_repos(): void
     {
         $issue = Issue::create([
@@ -25,9 +35,6 @@ class CreatePrJobTest extends TestCase
             'status' => IssueStatus::PreviewReady->value,
             'feature_branch' => 'feat/issue-42',
         ]);
-
-        config(['sdd.github.target_repos' => ['waltily', 'waltily-frontend']]);
-        config(['sdd.github.sdd_repo' => 'sdd']);
 
         $githubService = Mockery::mock(GitHubService::class);
         $githubService->shouldReceive('createPullRequest')
@@ -87,6 +94,9 @@ class CreatePrJobTest extends TestCase
         });
 
         $job->handle();
+
+        $issue->refresh();
+        $this->assertEquals(IssueStatus::Approved, $issue->status);
     }
 
     public function test_commits_and_pushes_before_creating_pr(): void
@@ -131,12 +141,12 @@ class CreatePrJobTest extends TestCase
         $job->handle();
 
         $commands = array_column($executedCommands, 'command');
-        $this->assertContains(['git', 'status', '--porcelain'], $commands);
-        $this->assertContains(['git', 'add', '-A'], $commands);
-        $this->assertContains(['git', 'commit', '-m', 'feat: issue #44 Add dashboard'], $commands);
-        $this->assertContains(
+        $this->assertSame(['git', 'status', '--porcelain'], $commands[0]);
+        $this->assertSame(['git', 'add', '-A'], $commands[1]);
+        $this->assertSame(['git', 'commit', '-m', 'feat: issue #44 Add dashboard'], $commands[2]);
+        $this->assertSame(
             ['git', 'push', 'https://test-token@github.com/Waltily-Inc/waltily.git', 'feat/issue-44'],
-            $commands
+            $commands[3]
         );
 
         foreach ($executedCommands as $call) {
