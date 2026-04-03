@@ -36,6 +36,8 @@ class ClaudeCodeService
         $output = $process->getOutput();
 
         Log::info('Claude Code CLI executed', [
+            'command' => $command,
+            'working_directory' => $workingDirectory,
             'exit_code' => $process->getExitCode(),
             'duration' => $duration,
             'session_id' => $this->parseSessionId($output),
@@ -56,6 +58,7 @@ class ClaudeCodeService
             '--print',
             '--output-format', 'json',
             '--max-turns', (string) $this->maxTurns,
+            '--model', 'sonnet'
         ];
 
         if ($sessionId) {

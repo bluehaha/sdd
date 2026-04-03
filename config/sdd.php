@@ -4,9 +4,13 @@ return [
     'github' => [
         'webhook_secret' => env('GITHUB_WEBHOOK_SECRET'),
         'token' => env('GITHUB_TOKEN'),
-        'owner' => env('GITHUB_OWNER', 'Waltily-Inc'),
-        'sdd_repo' => env('GITHUB_SDD_REPO', 'sdd'),
+        'owner' => env('GITHUB_OWNER'),
+        'sdd_repo' => env('GITHUB_SDD_REPO'),
         'target_repos' => ['waltily', 'waltily-frontend'],
+    ],
+
+    'repo' => [
+        'main_directory' => env('REPO_MAIN_DIRECTORY'),
     ],
 
     'slack' => [
