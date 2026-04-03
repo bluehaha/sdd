@@ -19,6 +19,8 @@ class CreatePrJob implements ShouldQueue
 {
     use Dispatchable, InteractsWithQueue, Queueable, SerializesModels;
 
+    public int $timeout = 3600;
+
     /** @var callable|null */
     private $gitRunner = null;
 
@@ -28,6 +30,9 @@ class CreatePrJob implements ShouldQueue
         $this->onQueue('sdd');
     }
 
+    /**
+     * @internal For testing only.
+     */
     public function setGitRunner(callable $runner): void
     {
         $this->gitRunner = $runner;
@@ -76,6 +81,11 @@ class CreatePrJob implements ShouldQueue
         $workspacePath = config('sdd.workspace_path');
         $commitMessage = "feat: issue #{$this->issueNumber} {$issue->title}";
 
+        if (!$issue->feature_branch) {
+            Log::error("Issue #{$this->issueNumber} has no feature branch set, cannot create PRs.");
+            return;
+        }
+
         $prLinks = [];
 
         foreach ($targetRepos as $repo) {
@@ -99,7 +109,8 @@ class CreatePrJob implements ShouldQueue
                 );
                 $prLinks[] = "[{$repo} PR #{$pr['number']}]({$pr['html_url']})";
             } catch (\Exception $e) {
-                Log::warning("Failed to create PR for {$repo}: {$e->getMessage()}");
+                $safeMessage = str_replace($token, '***', $e->getMessage());
+                Log::warning("Failed to create PR for {$repo}: {$safeMessage}");
             }
         }
 
