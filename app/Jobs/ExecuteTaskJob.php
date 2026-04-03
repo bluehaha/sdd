@@ -38,7 +38,7 @@ class ExecuteTaskJob implements ShouldQueue
         $issue = Issue::where('github_issue_number', $this->issueNumber)->firstOrFail();
 
         $isResume = $this->feedbackComment !== null;
-        $featureBranch = $issue->feature_branch ?? "feat/issue-{$this->issueNumber}";
+        $featureBranch = $issue->feature_branch ?? "feature/issue-{$this->issueNumber}";
 
         if (!$issue->feature_branch) {
             $issueService->saveFeatureBranch($issue, $featureBranch);
@@ -47,6 +47,11 @@ class ExecuteTaskJob implements ShouldQueue
         $issueService->transitionTo($issue, IssueStatus::Developing);
 
         $workspacePath = $previewService->workspacePath($this->issueNumber);
+
+        if (!$isResume) {
+            $previewService->setup($this->issueNumber, $featureBranch);
+        }
+
         $prompt = $isResume
             ? $this->buildResumePrompt($issue, $this->feedbackComment)
             : $this->buildFirstRunPrompt($issue, $featureBranch);
@@ -75,8 +80,6 @@ class ExecuteTaskJob implements ShouldQueue
                 "Issue #{$this->issueNumber} updated based on your feedback. Preview refreshed."
             );
         }
-
-        SetupPreviewJob::dispatch($this->issueNumber);
     }
 
     private function buildFirstRunPrompt(Issue $issue, string $featureBranch): string
@@ -94,7 +97,7 @@ class ExecuteTaskJob implements ShouldQueue
             2. Analyze the requirements
             3. Implement the feature in the waltily and/or waltily-frontend repos
             4. Write tests if applicable
-            5. Commit and push all changes
+            5. Commit all changes
             PROMPT;
     }
 
@@ -109,7 +112,7 @@ class ExecuteTaskJob implements ShouldQueue
 
             ## Instructions
 
-            Address the feedback, update the implementation, commit and push changes.
+            Address the feedback, update the implementation, commit changes.
             PROMPT;
     }
 }

@@ -4,13 +4,11 @@ namespace Tests\Feature\Jobs;
 
 use App\Enums\IssueStatus;
 use App\Jobs\ExecuteTaskJob;
-use App\Jobs\SetupPreviewJob;
 use App\Models\Issue;
 use App\Services\ClaudeCodeService;
 use App\Services\PreviewService;
 use App\Services\SlackService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
-use Illuminate\Support\Facades\Queue;
 use Mockery;
 use Tests\TestCase;
 
@@ -18,10 +16,8 @@ class ExecuteTaskJobTest extends TestCase
 {
     use RefreshDatabase;
 
-    public function test_first_run_creates_feature_branch_and_dispatches_preview(): void
+    public function test_first_run_creates_feature_branch_and_calls_setup(): void
     {
-        Queue::fake([SetupPreviewJob::class]);
-
         $issue = Issue::create([
             'github_issue_number' => 42,
             'title' => 'Add login',
@@ -47,6 +43,7 @@ class ExecuteTaskJobTest extends TestCase
 
         $previewService = Mockery::mock(PreviewService::class);
         $previewService->shouldReceive('workspacePath')->with(42)->andReturn('/var/www/sdd/workspaces/issue-42');
+        $previewService->shouldReceive('setup')->once()->with(42, 'feature/issue-42');
         $this->app->instance(PreviewService::class, $previewService);
 
         $job = new ExecuteTaskJob(42);
@@ -55,14 +52,11 @@ class ExecuteTaskJobTest extends TestCase
         $issue->refresh();
         $this->assertEquals(IssueStatus::Developing, $issue->status);
         $this->assertEquals('dev-sess-1', $issue->dev_session_id);
-        $this->assertEquals('feat/issue-42', $issue->feature_branch);
-        Queue::assertPushed(SetupPreviewJob::class);
+        $this->assertEquals('feature/issue-42', $issue->feature_branch);
     }
 
     public function test_resume_with_feedback_uses_existing_session(): void
     {
-        Queue::fake([SetupPreviewJob::class]);
-
         $issue = Issue::create([
             'github_issue_number' => 42,
             'title' => 'Add login',
@@ -70,7 +64,7 @@ class ExecuteTaskJobTest extends TestCase
             'github_author' => 'pm-user',
             'status' => IssueStatus::PreviewReady->value,
             'dev_session_id' => 'dev-sess-1',
-            'feature_branch' => 'feat/issue-42',
+            'feature_branch' => 'feature/issue-42',
         ]);
 
         $claudeService = Mockery::mock(ClaudeCodeService::class);
@@ -98,6 +92,7 @@ class ExecuteTaskJobTest extends TestCase
 
         $previewService = Mockery::mock(PreviewService::class);
         $previewService->shouldReceive('workspacePath')->with(42)->andReturn('/var/www/sdd/workspaces/issue-42');
+        $previewService->shouldNotReceive('setup');
         $this->app->instance(PreviewService::class, $previewService);
 
         $job = new ExecuteTaskJob(42, 'Fix the button color');
