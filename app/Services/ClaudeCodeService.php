@@ -35,16 +35,25 @@ class ClaudeCodeService
 
         $output = $process->getOutput();
 
-        Log::info('Claude Code CLI executed', [
+        $logContext = [
             'command' => $command,
             'working_directory' => $workingDirectory,
             'exit_code' => $process->getExitCode(),
             'duration' => $duration,
             'session_id' => $this->parseSessionId($output),
-        ]);
+        ];
+
+        if (!$process->isSuccessful()) {
+            Log::error('Claude Code CLI failed', array_merge($logContext, [
+                'error_output' => $process->getErrorOutput(),
+            ]));
+        } else {
+            Log::info('Claude Code CLI executed', $logContext);
+        }
 
         return [
             'output' => $output,
+            'error_output' => $process->getErrorOutput(),
             'exit_code' => $process->getExitCode(),
             'duration_seconds' => $duration,
             'session_id' => $this->parseSessionId($output),
