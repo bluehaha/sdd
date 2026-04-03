@@ -1,6 +1,8 @@
 <?php
 
 return [
+    'workspace_path' => env('WORKSPACE_PATH'),
+
     'github' => [
         'webhook_secret' => env('GITHUB_WEBHOOK_SECRET'),
         'token' => env('GITHUB_TOKEN'),
@@ -31,9 +33,9 @@ return [
     ],
 
     'database' => [
-        'dev_db_name' => env('DEV_DB_NAME', 'waltily'),
-        'dev_db_host' => env('DEV_DB_HOST', '127.0.0.1'),
-        'dev_db_user' => env('DEV_DB_USER', 'root'),
-        'dev_db_password' => env('DEV_DB_PASSWORD', ''),
+        'dev_db_name' => env('DEV_DB_NAME'),
+        'dev_db_host' => env('DEV_DB_HOST'),
+        'dev_db_user' => env('DEV_DB_USER'),
+        'dev_db_password' => env('DEV_DB_PASSWORD'),
     ],
 ];

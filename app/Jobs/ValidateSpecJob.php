@@ -41,8 +41,9 @@ class ValidateSpecJob implements ShouldQueue
 
         $prompt = $this->buildPrompt($issue);
         $sessionId = $issue->spec_session_id;
+        $workingDirectory = config('sdd.workspace_path') . "/main";
 
-        $result = $claudeService->execute($prompt, config('sdd.repo.main_directory'), $sessionId);
+        $result = $claudeService->execute($prompt, $workingDirectory, $sessionId);
 
         if ($result['session_id']) {
             $issueService->saveSpecSessionId($issue, $result['session_id']);

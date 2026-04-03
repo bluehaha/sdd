@@ -17,7 +17,7 @@ class PreviewService
         ?string $nginxConfigBasePath = null
     ) {
         $this->domain = $domain ?? config('sdd.preview.domain');
-        $this->workspaceBasePath = $workspaceBasePath ?? config('sdd.preview.workspace_path');
+        $this->workspaceBasePath = $workspaceBasePath ?? config('sdd.workspace_path');
         $this->nginxConfigBasePath = $nginxConfigBasePath ?? config('sdd.preview.nginx_config_path');
     }
 
