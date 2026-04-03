@@ -1,58 +1,171 @@
-<p align="center"><a href="https://laravel.com" target="_blank"><img src="https://raw.githubusercontent.com/laravel/art/master/logo-lockup/5%20SVG/2%20CMYK/1%20Full%20Color/laravel-logolockup-cmyk-red.svg" width="400" alt="Laravel Logo"></a></p>
+# SDD — Software Development Dashboard
 
-<p align="center">
-<a href="https://github.com/laravel/framework/actions"><img src="https://github.com/laravel/framework/workflows/tests/badge.svg" alt="Build Status"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/dt/laravel/framework" alt="Total Downloads"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/v/laravel/framework" alt="Latest Stable Version"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/l/laravel/framework" alt="License"></a>
-</p>
+An AI-powered feature development orchestration system for the Waltily project. SDD automates the entire feature lifecycle — from spec validation to preview environment creation to pull request generation — triggered entirely by GitHub issue labels and comments, with Claude Code as the AI execution engine.
 
-## About Laravel
+## Overview
 
-Laravel is a web application framework with expressive, elegant syntax. We believe development must be an enjoyable and creative experience to be truly fulfilling. Laravel takes the pain out of development by easing common tasks used in many web projects, such as:
+SDD listens for GitHub webhook events and dispatches queue jobs that call the Claude Code CLI to perform development work autonomously. Each GitHub issue becomes an isolated feature: its own git branch, preview URL, and database clone.
 
-- [Simple, fast routing engine](https://laravel.com/docs/routing).
-- [Powerful dependency injection container](https://laravel.com/docs/container).
-- Multiple back-ends for [session](https://laravel.com/docs/session) and [cache](https://laravel.com/docs/cache) storage.
-- Expressive, intuitive [database ORM](https://laravel.com/docs/eloquent).
-- Database agnostic [schema migrations](https://laravel.com/docs/migrations).
-- [Robust background job processing](https://laravel.com/docs/queues).
-- [Real-time event broadcasting](https://laravel.com/docs/broadcasting).
+**Tech Stack:** Laravel 13 · PHP 8.3 · Laravel Horizon · SQLite/MySQL · Nginx · Claude Code CLI · GitHub API · Slack API
 
-Laravel is accessible, powerful, and provides tools required for large, robust applications.
+---
 
-## Learning Laravel
+## Component Flowchart
 
-Laravel has the most extensive and thorough [documentation](https://laravel.com/docs) and video tutorial library of all modern web application frameworks, making it a breeze to get started with the framework.
-
-In addition, [Laracasts](https://laracasts.com) contains thousands of video tutorials on a range of topics including Laravel, modern PHP, unit testing, and JavaScript. Boost your skills by digging into our comprehensive video library.
-
-You can also watch bite-sized lessons with real-world projects on [Laravel Learn](https://laravel.com/learn), where you will be guided through building a Laravel application from scratch while learning PHP fundamentals.
-
-## Agentic Development
-
-Laravel's predictable structure and conventions make it ideal for AI coding agents like Claude Code, Cursor, and GitHub Copilot. Install [Laravel Boost](https://laravel.com/docs/ai) to supercharge your AI workflow:
-
-```bash
-composer require laravel/boost --dev
-
-php artisan boost:install
+```
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                              GitHub Issue                                    │
+│                     (PM creates issue with spec)                             │
+└──────────────────────────────┬──────────────────────────────────────────────┘
+                               │  label: spec_ready
+                               ▼
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                         GitHub Webhook                                       │
+│               POST /api/webhook/github                                       │
+│          VerifyGitHubWebhook (HMAC-SHA256)                                  │
+│                  WebhookController                                           │
+└──┬──────────────────┬───────────────────┬──────────────────┬────────────────┘
+   │ spec_ready        │ spec_pass          │ approved          │ closed
+   ▼                   ▼                   ▼                   ▼
+ValidateSpecJob   ExecuteTaskJob      CreatePrJob         CleanupJob
+   │                   │                   │                   │
+   ▼                   ▼                   ▼                   ▼
+┌──────────┐    ┌──────────────┐    ┌──────────────┐    ┌──────────────┐
+│  Claude  │    │    Claude    │    │  GitHubSvc   │    │  PreviewSvc  │
+│   Code   │    │    Code      │    │  Create PR   │    │  Teardown    │
+│   CLI    │    │    CLI       │    │  feat→develop│    │  workspace   │
+└────┬─────┘    └──────┬───────┘    └──────┬───────┘    ├──────────────┤
+     │                 │                   │             │  DbCloneSvc  │
+     │                 ▼                   │             │  Drop DB     │
+     │          SetupPreviewJob            │             └──────────────┘
+     │                 │
+     │          ┌──────┴────────────────────────────────────┐
+     │          │            PreviewService                  │
+     │          │  - Clone repos with feature branch         │
+     │          │  - Configure .env (APP_URL, DB_DATABASE)   │
+     │          │  - composer install / yarn build           │
+     │          │  - Generate Nginx vhost                    │
+     │          │  - issue-{n}.dev.waltily.tw                │
+     │          └──────┬────────────────────────────────────┘
+     │                 │  (if migrations detected)
+     │          ┌──────┴──────────┐
+     │          │  DbCloneService │
+     │          │  Clone dev DB   │
+     │          │  waltily_issue_n│
+     │          └─────────────────┘
+     │
+     ▼
+┌──────────────────────────────────────────────────────────────────────────────┐
+│                            SlackService                                       │
+│                    Notify PM at each workflow step                            │
+└──────────────────────────────────────────────────────────────────────────────┘
 ```
 
-Boost provides your agent 15+ tools and skills that help agents build Laravel applications while following best practices.
+### Issue State Machine
 
-## Contributing
+```
+pending ──[spec_ready label]──▶ spec_validating
+    │                                  │
+    │◀──[spec failed]─────────────────┘
+    │
+    └──[spec passed]──▶ spec_passed ──[spec_pass label]──▶ developing
+                                                                │
+                                                          preview_ready ◀──[setup done]
+                                                                │
+                                                          [comment]──▶ developing (resume)
+                                                                │
+                                                          approved ──[approved label]
+                                                                │
+                                                          done ◀──[closed]
+```
 
-Thank you for considering contributing to the Laravel framework! The contribution guide can be found in the [Laravel documentation](https://laravel.com/docs/contributions).
+---
 
-## Code of Conduct
+## Architecture
 
-In order to ensure that the Laravel community is welcoming to all, please review and abide by the [Code of Conduct](https://laravel.com/docs/contributions#code-of-conduct).
+```
+app/
+├── Http/
+│   ├── Controllers/WebhookController.php   # GitHub webhook entry point
+│   └── Middleware/VerifyGitHubWebhook.php  # HMAC-SHA256 validation
+├── Jobs/
+│   ├── ValidateSpecJob.php                 # Validate issue spec via Claude
+│   ├── ExecuteTaskJob.php                  # Implement feature via Claude
+│   ├── SetupPreviewJob.php                 # Spin up preview environment
+│   ├── CreatePrJob.php                     # Create PRs to develop branch
+│   └── CleanupJob.php                      # Tear down preview resources
+├── Services/
+│   ├── ClaudeCodeService.php               # Claude Code CLI wrapper
+│   ├── GitHubService.php                   # GitHub REST API client
+│   ├── IssueService.php                    # Issue state management
+│   ├── PreviewService.php                  # Workspace + Nginx setup/teardown
+│   ├── DbCloneService.php                  # MySQL database cloning
+│   └── SlackService.php                    # Slack DM notifications
+├── Models/
+│   ├── Issue.php                           # Core issue tracking
+│   ├── IssueLog.php                        # Claude execution audit log
+│   ├── PreviewEnvironment.php              # Preview metadata
+│   └── PmMapping.php                       # GitHub → Slack user map
+└── Enums/IssueStatus.php                   # Issue state machine enum
+```
 
-## Security Vulnerabilities
+---
 
-If you discover a security vulnerability within Laravel, please send an e-mail to Taylor Otwell via [taylor@laravel.com](mailto:taylor@laravel.com). All security vulnerabilities will be promptly addressed.
+## Workflow
 
-## License
+| GitHub Action | Label / Event | Job Dispatched | Outcome |
+|---|---|---|---|
+| PM labels issue | `spec_ready` | `ValidateSpecJob` | Claude validates spec clarity; adds `spec_pass` or removes label + posts feedback |
+| PM labels issue | `spec_pass` | `ExecuteTaskJob` | Claude implements feature on `feat/issue-{n}` branch |
+| Feature implemented | _(automatic)_ | `SetupPreviewJob` | Preview spun up at `issue-{n}.dev.waltily.tw` |
+| PM comments on issue | `issue_comment` | `ExecuteTaskJob` | Claude resumes session, applies PM feedback |
+| PM labels issue | `approved` | `CreatePrJob` | PRs created: `feat/issue-{n}` → `develop` for each repo |
+| PM closes issue | `closed` | `CleanupJob` | Workspace, Nginx config, and cloned DB removed |
 
-The Laravel framework is open-sourced software licensed under the [MIT license](https://opensource.org/licenses/MIT).
+---
+
+## Setup
+
+```bash
+# Install dependencies and initialize
+composer setup
+
+# Start all development services (server, queue, logs, vite)
+composer dev
+
+# Run tests
+composer test
+```
+
+### Key Environment Variables
+
+```env
+GITHUB_WEBHOOK_SECRET=
+GITHUB_TOKEN=
+GITHUB_OWNER=
+GITHUB_SDD_REPO=
+
+SLACK_BOT_TOKEN=
+SLACK_WEBHOOK_URL=
+
+CLAUDE_BINARY_PATH=claude
+CLAUDE_MAX_TURNS=50
+CLAUDE_TIMEOUT=3600
+
+PREVIEW_DOMAIN=dev.waltily.tw
+WORKSPACE_PATH=/var/www/sdd/workspaces
+NGINX_CONFIG_PATH=/etc/nginx/sites-enabled
+
+DEV_DB_NAME=waltily
+DEV_DB_HOST=127.0.0.1
+DEV_DB_USER=root
+DEV_DB_PASSWORD=
+```
+
+---
+
+## Queue
+
+Jobs run on the `sdd` queue managed by Laravel Horizon. Monitor at `/horizon`.
+
+Each job logs its full execution to `issue_logs` — including the Claude prompt, output, exit code, and duration.
