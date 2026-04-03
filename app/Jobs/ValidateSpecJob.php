@@ -27,13 +27,12 @@ class ValidateSpecJob implements ShouldQueue
         $this->onQueue('sdd');
     }
 
-    public function handle(): void
-    {
-        $issueService = app(IssueService::class);
-        $claudeService = app(ClaudeCodeService::class);
-        $githubService = app(GitHubService::class);
-        $slackService = app(SlackService::class);
-
+    public function handle(
+        IssueService $issueService,
+        ClaudeCodeService $claudeService,
+        GitHubService $githubService,
+        SlackService $slackService,
+    ): void {
         $issue = Issue::where('github_issue_number', $this->issueNumber)->firstOrFail();
         $issueService->transitionTo($issue, IssueStatus::SpecValidating);
 

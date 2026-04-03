@@ -28,13 +28,12 @@ class ExecuteTaskJob implements ShouldQueue
         $this->onQueue('sdd');
     }
 
-    public function handle(): void
-    {
-        $issueService = app(IssueService::class);
-        $claudeService = app(ClaudeCodeService::class);
-        $slackService = app(SlackService::class);
-        $previewService = app(PreviewService::class);
-
+    public function handle(
+        IssueService $issueService,
+        ClaudeCodeService $claudeService,
+        SlackService $slackService,
+        PreviewService $previewService,
+    ): void {
         $issue = Issue::where('github_issue_number', $this->issueNumber)->firstOrFail();
 
         $isResume = $this->feedbackComment !== null;

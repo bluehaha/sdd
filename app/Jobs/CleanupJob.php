@@ -23,12 +23,11 @@ class CleanupJob implements ShouldQueue
         $this->onQueue('sdd');
     }
 
-    public function handle(): void
-    {
-        $issueService = app(IssueService::class);
-        $previewService = app(PreviewService::class);
-        $dbCloneService = app(DbCloneService::class);
-
+    public function handle(
+        IssueService $issueService,
+        PreviewService $previewService,
+        DbCloneService $dbCloneService,
+    ): void {
         $issue = Issue::where('github_issue_number', $this->issueNumber)->firstOrFail();
         $preview = $issue->previewEnvironment;
 

@@ -24,12 +24,11 @@ class CreatePrJob implements ShouldQueue
         $this->onQueue('sdd');
     }
 
-    public function handle(): void
-    {
-        $issueService = app(IssueService::class);
-        $githubService = app(GitHubService::class);
-        $slackService = app(SlackService::class);
-
+    public function handle(
+        IssueService $issueService,
+        GitHubService $githubService,
+        SlackService $slackService,
+    ): void {
         $issue = Issue::where('github_issue_number', $this->issueNumber)->firstOrFail();
         $sddRepo = config('sdd.github.sdd_repo');
         $targetRepos = config('sdd.github.target_repos');
