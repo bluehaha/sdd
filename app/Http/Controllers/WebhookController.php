@@ -10,6 +10,7 @@ use App\Jobs\ValidateSpecJob;
 use App\Services\IssueService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Log;
 
 class WebhookController extends Controller
 {
@@ -21,6 +22,8 @@ class WebhookController extends Controller
     {
         $event = $request->header('X-GitHub-Event');
         $payload = $request->all();
+
+        Log::debug("Received GitHub webhook event: $event", $payload);
 
         return match ($event) {
             'issues' => $this->handleIssueEvent($payload),
