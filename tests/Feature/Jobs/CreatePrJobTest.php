@@ -51,4 +51,96 @@ class CreatePrJobTest extends TestCase
         $issue->refresh();
         $this->assertEquals(IssueStatus::Approved, $issue->status);
     }
+
+    public function test_skips_repo_with_no_changes(): void
+    {
+        $issue = Issue::create([
+            'github_issue_number' => 43,
+            'title' => 'Add logout',
+            'body' => 'Spec body',
+            'github_author' => 'pm-user',
+            'status' => IssueStatus::PreviewReady->value,
+            'feature_branch' => 'feat/issue-43',
+        ]);
+
+        config(['sdd.github.target_repos' => ['waltily']]);
+        config(['sdd.github.sdd_repo' => 'sdd']);
+        config(['sdd.github.token' => 'test-token']);
+        config(['sdd.github.owner' => 'Waltily-Inc']);
+        config(['sdd.workspace_path' => '/tmp/workspaces']);
+
+        $githubService = Mockery::mock(GitHubService::class);
+        $githubService->shouldNotReceive('createPullRequest');
+        $githubService->shouldReceive('postComment')->once();
+        $this->app->instance(GitHubService::class, $githubService);
+
+        $slackService = Mockery::mock(SlackService::class);
+        $slackService->shouldReceive('notifyPm')->once();
+        $this->app->instance(SlackService::class, $slackService);
+
+        $job = new CreatePrJob(43);
+        $job->setGitRunner(function (array $command, string $cwd) {
+            if ($command === ['git', 'status', '--porcelain']) {
+                return ''; // no changes
+            }
+            throw new \RuntimeException('Unexpected git command: ' . implode(' ', $command));
+        });
+
+        $job->handle();
+    }
+
+    public function test_commits_and_pushes_before_creating_pr(): void
+    {
+        $issue = Issue::create([
+            'github_issue_number' => 44,
+            'title' => 'Add dashboard',
+            'body' => 'Spec body',
+            'github_author' => 'pm-user',
+            'status' => IssueStatus::PreviewReady->value,
+            'feature_branch' => 'feat/issue-44',
+        ]);
+
+        config(['sdd.github.target_repos' => ['waltily']]);
+        config(['sdd.github.sdd_repo' => 'sdd']);
+        config(['sdd.github.token' => 'test-token']);
+        config(['sdd.github.owner' => 'Waltily-Inc']);
+        config(['sdd.workspace_path' => '/tmp/workspaces']);
+
+        $githubService = Mockery::mock(GitHubService::class);
+        $githubService->shouldReceive('createPullRequest')
+            ->with('waltily', 'feat/issue-44', 'develop', '[SDD #44] Add dashboard', Mockery::type('string'))
+            ->once()
+            ->andReturn(['number' => 101, 'html_url' => 'https://github.com/Waltily-Inc/waltily/pull/101']);
+        $githubService->shouldReceive('postComment')->once();
+        $this->app->instance(GitHubService::class, $githubService);
+
+        $slackService = Mockery::mock(SlackService::class);
+        $slackService->shouldReceive('notifyPm')->once();
+        $this->app->instance(SlackService::class, $slackService);
+
+        $executedCommands = [];
+        $job = new CreatePrJob(44);
+        $job->setGitRunner(function (array $command, string $cwd) use (&$executedCommands) {
+            $executedCommands[] = ['command' => $command, 'cwd' => $cwd];
+            if ($command === ['git', 'status', '--porcelain']) {
+                return ' M src/foo.php'; // has changes
+            }
+            return ''; // git add, commit, push succeed
+        });
+
+        $job->handle();
+
+        $commands = array_column($executedCommands, 'command');
+        $this->assertContains(['git', 'status', '--porcelain'], $commands);
+        $this->assertContains(['git', 'add', '-A'], $commands);
+        $this->assertContains(['git', 'commit', '-m', 'feat: issue #44 Add dashboard'], $commands);
+        $this->assertContains(
+            ['git', 'push', 'https://test-token@github.com/Waltily-Inc/waltily.git', 'feat/issue-44'],
+            $commands
+        );
+
+        foreach ($executedCommands as $call) {
+            $this->assertEquals('/tmp/workspaces/issue-44/waltily', $call['cwd']);
+        }
+    }
 }
