@@ -10,15 +10,18 @@ class PreviewService
     private string $domain;
     private string $workspaceBasePath;
     private string $nginxConfigBasePath;
+    private string $mainRepoPath;
 
     public function __construct(
         ?string $domain = null,
         ?string $workspaceBasePath = null,
-        ?string $nginxConfigBasePath = null
+        ?string $nginxConfigBasePath = null,
+        ?string $mainRepoPath = null
     ) {
         $this->domain = $domain ?? config('sdd.preview.domain');
         $this->workspaceBasePath = $workspaceBasePath ?? config('sdd.workspace_path');
         $this->nginxConfigBasePath = $nginxConfigBasePath ?? config('sdd.preview.nginx_config_path');
+        $this->mainRepoPath = $mainRepoPath ?? config('sdd.repo.main_directory');
     }
 
     public function setup(int $issueNumber, string $featureBranch, ?string $clonedDbName = null): string
@@ -53,6 +56,13 @@ class PreviewService
         if (file_exists($nginxConfig)) {
             @unlink($nginxConfig);
             $this->reloadNginx();
+        }
+
+        foreach (config('sdd.github.target_repos') as $repo) {
+            $mainRepo = "{$this->mainRepoPath}/{$repo}";
+            $prune = new Process(['git', '-C', $mainRepo, 'worktree', 'prune']);
+            $prune->setTimeout(30);
+            $prune->run();
         }
 
         Log::info("Preview environment removed", ['issue' => $issueNumber]);
@@ -103,22 +113,14 @@ NGINX;
         @mkdir($workspace, 0755, true);
 
         foreach (config('sdd.github.target_repos') as $repo) {
-            $owner = config('sdd.github.owner');
-            $repoUrl = "git@github.com:{$owner}/{$repo}.git";
-            $repoPath = "{$workspace}/{$repo}";
+            $mainRepo = "{$this->mainRepoPath}/{$repo}";
+            $worktreePath = "{$workspace}/{$repo}";
 
-            $clone = new Process(['git', 'clone', '--branch', $featureBranch, '--single-branch', $repoUrl, $repoPath]);
-            $clone->setTimeout(300);
-            $clone->run();
-
-            if (!$clone->isSuccessful()) {
-                $fallback = new Process(['git', 'clone', $repoUrl, $repoPath]);
-                $fallback->setTimeout(300);
-                $fallback->mustRun();
-
-                $checkout = new Process(['git', 'checkout', '-b', $featureBranch], $repoPath);
-                $checkout->mustRun();
-            }
+            $process = new Process(
+                ['git', '-C', $mainRepo, 'worktree', 'add', '-b', $featureBranch, $worktreePath],
+            );
+            $process->setTimeout(60);
+            $process->mustRun();
         }
     }
 
