@@ -79,19 +79,19 @@ class ValidateSpecJob implements ShouldQueue
     private function buildPrompt(Issue $issue): string
     {
         return <<<PROMPT
-You are reviewing a feature spec for clarity and completeness.
+            You are reviewing a feature spec for clarity and completeness.
 
-## Issue #{$issue->github_issue_number}: {$issue->title}
+            ## Issue #{$issue->github_issue_number}: {$issue->title}
 
-{$issue->body}
+            {$issue->body}
 
-## Instructions
+            ## Instructions
 
-Analyze this spec and determine if it is clear enough to implement.
-Check for: clear feature description, testable acceptance criteria, defined scope.
+            Analyze this spec and determine if it is clear enough to implement.
+            Check for: clear feature description, testable acceptance criteria, defined scope.
 
-Respond with JSON:
-{"passed": true/false, "summary": "...", "feedback": "...if not passed..."}
-PROMPT;
+            Respond with JSON (no contain '```JSON'):
+            {"passed": true/false, "summary": "...", "feedback": "...if not passed..."}
+            PROMPT;
     }
 }

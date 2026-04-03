@@ -82,34 +82,34 @@ class ExecuteTaskJob implements ShouldQueue
     private function buildFirstRunPrompt(Issue $issue, string $featureBranch): string
     {
         return <<<PROMPT
-You are implementing a feature based on the following spec.
+            You are implementing a feature based on the following spec.
 
-## Issue #{$issue->github_issue_number}: {$issue->title}
+            ## Issue #{$issue->github_issue_number}: {$issue->title}
 
-{$issue->body}
+            {$issue->body}
 
-## Instructions
+            ## Instructions
 
-1. Create feature branch: {$featureBranch}
-2. Analyze the requirements
-3. Implement the feature in the waltily and/or waltily-frontend repos
-4. Write tests if applicable
-5. Commit and push all changes
-PROMPT;
+            1. Create feature branch: {$featureBranch}
+            2. Analyze the requirements
+            3. Implement the feature in the waltily and/or waltily-frontend repos
+            4. Write tests if applicable
+            5. Commit and push all changes
+            PROMPT;
     }
 
     private function buildResumePrompt(Issue $issue, string $feedback): string
     {
         return <<<PROMPT
-The PM has provided feedback on your implementation for issue #{$issue->github_issue_number}.
+            The PM has provided feedback on your implementation for issue #{$issue->github_issue_number}.
 
-## PM Feedback
+            ## PM Feedback
 
-{$feedback}
+            {$feedback}
 
-## Instructions
+            ## Instructions
 
-Address the feedback, update the implementation, commit and push changes.
-PROMPT;
+            Address the feedback, update the implementation, commit and push changes.
+            PROMPT;
     }
 }
