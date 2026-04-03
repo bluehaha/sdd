@@ -87,6 +87,7 @@ class CreatePrJob implements ShouldQueue
         }
 
         $prLinks = [];
+        $attemptedCommit = false;
 
         foreach ($targetRepos as $repo) {
             try {
@@ -94,6 +95,10 @@ class CreatePrJob implements ShouldQueue
                 $pushUrl = "https://{$token}@github.com/{$owner}/{$repo}.git";
 
                 $hasChanges = $this->commitAndPush($repoPath, $commitMessage, $pushUrl, $issue->feature_branch);
+
+                if ($hasChanges) {
+                    $attemptedCommit = true;
+                }
 
                 if (!$hasChanges) {
                     Log::info("No changes in {$repo} for issue #{$this->issueNumber}, skipping PR.");
@@ -112,6 +117,10 @@ class CreatePrJob implements ShouldQueue
                 $safeMessage = str_replace($token, '***', $e->getMessage());
                 Log::warning("Failed to create PR for {$repo}: {$safeMessage}");
             }
+        }
+
+        if ($attemptedCommit && empty($prLinks)) {
+            throw new \RuntimeException("Issue #{$this->issueNumber}: commits were made but all PRs failed to create.");
         }
 
         $issueService->transitionTo($issue, IssueStatus::Approved);

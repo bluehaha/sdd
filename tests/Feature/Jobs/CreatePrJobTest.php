@@ -106,6 +106,47 @@ class CreatePrJobTest extends TestCase
         $this->assertEquals(IssueStatus::Approved, $issue->status);
     }
 
+    public function test_fails_job_when_commits_made_but_all_prs_fail(): void
+    {
+        $issue = Issue::create([
+            'github_issue_number' => 45,
+            'title' => 'Add notifications',
+            'body' => 'Spec body',
+            'github_author' => 'pm-user',
+            'status' => IssueStatus::PreviewReady->value,
+            'feature_branch' => 'feat/issue-45',
+        ]);
+
+        config(['sdd.github.target_repos' => ['waltily']]);
+
+        $githubService = Mockery::mock(GitHubService::class);
+        $githubService->shouldReceive('createPullRequest')
+            ->andThrow(new \Exception('GitHub API error'));
+        $githubService->shouldNotReceive('postComment');
+        $this->app->instance(GitHubService::class, $githubService);
+
+        $slackService = Mockery::mock(SlackService::class);
+        $slackService->shouldNotReceive('notifyPm');
+        $this->app->instance(SlackService::class, $slackService);
+
+        $job = new CreatePrJob(45);
+        $job->setGitRunner(function (array $command, string $cwd) {
+            if ($command === ['git', 'status', '--porcelain']) {
+                return ' M src/foo.php'; // has changes
+            }
+            return ''; // add, commit, push succeed
+        });
+
+        $this->expectException(\RuntimeException::class);
+        $this->expectExceptionMessageMatches('/Issue #45.*all PRs failed/i');
+
+        $job->handle();
+
+        // Issue should NOT be transitioned to Approved
+        $issue->refresh();
+        $this->assertNotEquals(IssueStatus::Approved, $issue->status);
+    }
+
     public function test_commits_and_pushes_before_creating_pr(): void
     {
         $issue = Issue::create([
