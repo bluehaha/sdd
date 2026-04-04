@@ -37,7 +37,6 @@ class CleanupJob implements ShouldQueue
             }
 
             $previewService->teardown($this->issueNumber);
-            $preview->delete();
         }
 
         $issueService->transitionTo($issue, IssueStatus::Done);

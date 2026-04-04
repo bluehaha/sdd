@@ -27,6 +27,13 @@ class PreviewService
         $this->configureEnv($workspace, $subdomain, $clonedDbName);
         // $this->installDependencies($workspace);
 
+        PreviewEnvironment::create([
+            'issue_id' => $issue->id,
+            'subdomain' => $subdomain,
+            'workspace_path' => $workspace,
+            'cloned_db_name' => $clonedDbName,
+        ]);
+
         Log::info("Preview environment created", [
             'issue' => $issueNumber,
             'subdomain' => $subdomain,
