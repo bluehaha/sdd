@@ -65,6 +65,52 @@ class PreviewService
         Log::info("Preview environment removed", ['issue' => $issueNumber]);
     }
 
+    public function buildFrontendIfChanged(string $issueWorkspacePath): void
+    {
+        $frontendPath = $issueWorkspacePath . '/waltily-frontend';
+
+        if (!is_dir($frontendPath)) {
+            Log::info('Frontend build skipped: directory not found', ['path' => $frontendPath]);
+            return;
+        }
+
+        $diff = new Process(['git', 'diff', 'HEAD~1', '--name-only']);
+        $diff->setWorkingDirectory($frontendPath);
+        $diff->setTimeout(30);
+        $diff->run();
+
+        if (!$diff->isSuccessful()) {
+            Log::warning('Frontend build skipped: git diff failed', [
+                'path' => $frontendPath,
+                'error' => $diff->getErrorOutput(),
+            ]);
+            return;
+        }
+
+        if (trim($diff->getOutput()) === '') {
+            Log::info('Frontend build skipped: no changes detected', ['path' => $frontendPath]);
+            return;
+        }
+
+        Log::info('Frontend changes detected, running yarn build', ['path' => $frontendPath]);
+
+        $build = new Process(['yarn', 'build']);
+        $build->setWorkingDirectory($frontendPath);
+        $build->setTimeout(300);
+        $build->run();
+
+        if (!$build->isSuccessful()) {
+            Log::error('Frontend build failed', [
+                'path' => $frontendPath,
+                'error' => $build->getErrorOutput(),
+                'output' => $build->getOutput(),
+            ]);
+            return;
+        }
+
+        Log::info('Frontend build completed', ['path' => $frontendPath]);
+    }
+
     public function generateSubdomain(int $issueNumber): string
     {
         return "issue-{$issueNumber}.{$this->domain}";
