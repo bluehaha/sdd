@@ -37,6 +37,10 @@ class CreatePrJobTest extends TestCase
         ]);
 
         $githubService = Mockery::mock(GitHubService::class);
+        $githubService->shouldReceive('hasChanges')->andReturn(true);
+        $githubService->shouldReceive('stageAll')->twice();
+        $githubService->shouldReceive('commit')->twice();
+        $githubService->shouldReceive('push')->twice();
         $githubService->shouldReceive('createPullRequest')
             ->with('waltily', 'feat/issue-42', 'develop', Mockery::type('string'), Mockery::type('string'))
             ->once()
@@ -53,13 +57,6 @@ class CreatePrJobTest extends TestCase
         $this->app->instance(SlackService::class, $slackService);
 
         $job = new CreatePrJob(42);
-        $job->setGitRunner(function (array $command, string $cwd) {
-            if ($command === ['git', 'status', '--porcelain']) {
-                return ' M src/foo.php'; // has changes
-            }
-            return ''; // add, commit, push succeed
-        });
-
         $job->handle();
 
         $issue->refresh();
@@ -78,12 +75,12 @@ class CreatePrJobTest extends TestCase
         ]);
 
         config(['sdd.github.target_repos' => ['waltily']]);
-        config(['sdd.github.sdd_repo' => 'sdd']);
-        config(['sdd.github.token' => 'test-token']);
-        config(['sdd.github.owner' => 'Waltily-Inc']);
-        config(['sdd.workspace_path' => '/tmp/workspaces']);
 
         $githubService = Mockery::mock(GitHubService::class);
+        $githubService->shouldReceive('hasChanges')->andReturn(false);
+        $githubService->shouldNotReceive('stageAll');
+        $githubService->shouldNotReceive('commit');
+        $githubService->shouldNotReceive('push');
         $githubService->shouldNotReceive('createPullRequest');
         $githubService->shouldReceive('postComment')->once();
         $this->app->instance(GitHubService::class, $githubService);
@@ -93,13 +90,6 @@ class CreatePrJobTest extends TestCase
         $this->app->instance(SlackService::class, $slackService);
 
         $job = new CreatePrJob(43);
-        $job->setGitRunner(function (array $command, string $cwd) {
-            if ($command === ['git', 'status', '--porcelain']) {
-                return ''; // no changes
-            }
-            throw new \RuntimeException('Unexpected git command: ' . implode(' ', $command));
-        });
-
         $job->handle();
 
         $issue->refresh();
@@ -120,6 +110,10 @@ class CreatePrJobTest extends TestCase
         config(['sdd.github.target_repos' => ['waltily']]);
 
         $githubService = Mockery::mock(GitHubService::class);
+        $githubService->shouldReceive('hasChanges')->andReturn(true);
+        $githubService->shouldReceive('stageAll')->once();
+        $githubService->shouldReceive('commit')->once();
+        $githubService->shouldReceive('push')->once();
         $githubService->shouldReceive('createPullRequest')
             ->andThrow(new \Exception('GitHub API error'));
         $githubService->shouldNotReceive('postComment');
@@ -130,21 +124,11 @@ class CreatePrJobTest extends TestCase
         $this->app->instance(SlackService::class, $slackService);
 
         $job = new CreatePrJob(45);
-        $job->setGitRunner(function (array $command, string $cwd) {
-            if ($command === ['git', 'status', '--porcelain']) {
-                return ' M src/foo.php'; // has changes
-            }
-            return ''; // add, commit, push succeed
-        });
 
         $this->expectException(\RuntimeException::class);
         $this->expectExceptionMessageMatches('/Issue #45.*all PRs failed/i');
 
         $job->handle();
-
-        // Issue should NOT be transitioned to Approved
-        $issue->refresh();
-        $this->assertNotEquals(IssueStatus::Approved, $issue->status);
     }
 
     public function test_commits_and_pushes_before_creating_pr(): void
@@ -159,12 +143,18 @@ class CreatePrJobTest extends TestCase
         ]);
 
         config(['sdd.github.target_repos' => ['waltily']]);
-        config(['sdd.github.sdd_repo' => 'sdd']);
-        config(['sdd.github.token' => 'test-token']);
-        config(['sdd.github.owner' => 'Waltily-Inc']);
-        config(['sdd.workspace_path' => '/tmp/workspaces']);
+
+        $repoPath = '/tmp/workspaces/issue-44/waltily';
 
         $githubService = Mockery::mock(GitHubService::class);
+        $githubService->shouldReceive('hasChanges')
+            ->with($repoPath)->once()->andReturn(true);
+        $githubService->shouldReceive('stageAll')
+            ->with($repoPath)->once();
+        $githubService->shouldReceive('commit')
+            ->with($repoPath, 'feat: issue #44 Add dashboard')->once();
+        $githubService->shouldReceive('push')
+            ->with('waltily', $repoPath, 'feat/issue-44')->once();
         $githubService->shouldReceive('createPullRequest')
             ->with('waltily', 'feat/issue-44', 'develop', '[SDD #44] Add dashboard', Mockery::type('string'))
             ->once()
@@ -176,29 +166,7 @@ class CreatePrJobTest extends TestCase
         $slackService->shouldReceive('notifyPm')->once();
         $this->app->instance(SlackService::class, $slackService);
 
-        $executedCommands = [];
         $job = new CreatePrJob(44);
-        $job->setGitRunner(function (array $command, string $cwd) use (&$executedCommands) {
-            $executedCommands[] = ['command' => $command, 'cwd' => $cwd];
-            if ($command === ['git', 'status', '--porcelain']) {
-                return ' M src/foo.php'; // has changes
-            }
-            return ''; // git add, commit, push succeed
-        });
-
         $job->handle();
-
-        $commands = array_column($executedCommands, 'command');
-        $this->assertSame(['git', 'status', '--porcelain'], $commands[0]);
-        $this->assertSame(['git', 'add', '-A'], $commands[1]);
-        $this->assertSame(['git', 'commit', '-m', 'feat: issue #44 Add dashboard'], $commands[2]);
-        $this->assertSame(
-            ['git', 'push', 'https://test-token@github.com/Waltily-Inc/waltily.git', 'feat/issue-44'],
-            $commands[3]
-        );
-
-        foreach ($executedCommands as $call) {
-            $this->assertEquals('/tmp/workspaces/issue-44/waltily', $call['cwd']);
-        }
     }
 }

@@ -83,4 +83,49 @@ class GitHubServiceTest extends TestCase
         $pr = $this->service->createPullRequest('waltily', 'feat/issue-42', 'develop', 'Add login feature', 'Implements #42');
         $this->assertEquals(99, $pr['number']);
     }
+
+    public function test_has_changes_returns_true_when_status_non_empty(): void
+    {
+        $this->service->setGitRunner(function (array $command, string $cwd) {
+            $this->assertSame(['git', 'status', '--porcelain'], $command);
+            $this->assertSame('/tmp/repo', $cwd);
+            return ' M src/foo.php';
+        });
+
+        $this->assertTrue($this->service->hasChanges('/tmp/repo'));
+    }
+
+    public function test_has_changes_returns_false_when_status_empty(): void
+    {
+        $this->service->setGitRunner(function (array $command, string $cwd) {
+            return '';
+        });
+
+        $this->assertFalse($this->service->hasChanges('/tmp/repo'));
+    }
+
+    public function test_commit_and_push_runs_correct_commands(): void
+    {
+        $executedCommands = [];
+        $this->service->setGitRunner(function (array $command, string $cwd) use (&$executedCommands) {
+            $executedCommands[] = ['command' => $command, 'cwd' => $cwd];
+            return '';
+        });
+
+        $this->service->stageAll('/tmp/repo');
+        $this->service->commit('/tmp/repo', 'feat: test commit');
+        $this->service->push('waltily', '/tmp/repo', 'feat/issue-42');
+
+        $commands = array_column($executedCommands, 'command');
+        $this->assertSame(['git', 'add', '-A'], $commands[0]);
+        $this->assertSame(['git', 'commit', '-m', 'feat: test commit'], $commands[1]);
+        $this->assertSame(
+            ['git', 'push', 'https://test-token@github.com/Waltily-Inc/waltily.git', 'feat/issue-42'],
+            $commands[2]
+        );
+
+        foreach ($executedCommands as $call) {
+            $this->assertSame('/tmp/repo', $call['cwd']);
+        }
+    }
 }

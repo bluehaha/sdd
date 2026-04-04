@@ -3,6 +3,7 @@
 namespace App\Services;
 
 use Illuminate\Support\Facades\Http;
+use Symfony\Component\Process\Process;
 
 class GitHubService
 {
@@ -10,10 +11,58 @@ class GitHubService
     private string $token;
     private string $owner;
 
+    /** @var callable|null */
+    private $gitRunner = null;
+
     public function __construct()
     {
         $this->token = config('sdd.github.token');
         $this->owner = config('sdd.github.owner');
+    }
+
+    /**
+     * @internal For testing only.
+     */
+    public function setGitRunner(callable $runner): void
+    {
+        $this->gitRunner = $runner;
+    }
+
+    public function hasChanges(string $repoPath): bool
+    {
+        $status = $this->runGit(['git', 'status', '--porcelain'], $repoPath);
+
+        return trim($status) !== '';
+    }
+
+    public function stageAll(string $repoPath): void
+    {
+        $this->runGit(['git', 'add', '-A'], $repoPath);
+    }
+
+    public function commit(string $repoPath, string $message): void
+    {
+        $this->runGit(['git', 'commit', '-m', $message], $repoPath);
+    }
+
+    public function push(string $repo, string $repoPath, string $branch): void
+    {
+        $pushUrl = "https://{$this->token}@github.com/{$this->owner}/{$repo}.git";
+        $this->runGit(['git', 'push', $pushUrl, $branch], $repoPath);
+    }
+
+    private function runGit(array $command, string $cwd): string
+    {
+        if ($this->gitRunner !== null) {
+            return ($this->gitRunner)($command, $cwd);
+        }
+
+        $process = new Process($command);
+        $process->setWorkingDirectory($cwd);
+        $process->setTimeout(60);
+        $process->mustRun();
+
+        return $process->getOutput();
     }
 
     public function getIssue(string $repo, int $issueNumber): array
