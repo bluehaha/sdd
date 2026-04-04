@@ -51,6 +51,7 @@ class ExecuteTaskJobTest extends TestCase
         $previewService->shouldReceive('setup')->once()->withArgs(function ($issueArg, $branch) use ($issue) {
             return $issueArg->is($issue) && $branch === 'feature/issue-42';
         });
+        $previewService->shouldReceive('buildFrontendIfChanged')->once()->with('/var/www/sdd/workspaces/issue-42');
         $this->app->instance(PreviewService::class, $previewService);
 
         $job = new ExecuteTaskJob(42);
@@ -104,6 +105,7 @@ class ExecuteTaskJobTest extends TestCase
         $previewService = Mockery::mock(PreviewService::class);
         $previewService->shouldReceive('issueWorkspacePath')->with(42)->andReturn('/var/www/sdd/workspaces/issue-42');
         $previewService->shouldNotReceive('setup');
+        $previewService->shouldReceive('buildFrontendIfChanged')->once()->with('/var/www/sdd/workspaces/issue-42');
         $this->app->instance(PreviewService::class, $previewService);
 
         $job = new ExecuteTaskJob(42, 'Fix the button color');
@@ -123,17 +125,6 @@ class ExecuteTaskJobTest extends TestCase
             'status' => IssueStatus::SpecPassed->value,
         ]);
 
-        $workspacePath = sys_get_temp_dir() . '/sdd-test-issue-55-' . uniqid();
-        $frontendPath = $workspacePath . '/waltily-frontend';
-        mkdir($frontendPath, 0755, true);
-
-        // Init a git repo so `git diff --name-only` works
-        exec("git -C {$frontendPath} init");
-        exec("git -C {$frontendPath} commit --allow-empty -m 'init'");
-        // Stage a change to simulate modified frontend file
-        file_put_contents("{$frontendPath}/app.js", 'console.log("changed")');
-        exec("git -C {$frontendPath} add app.js");
-
         $claudeService = Mockery::mock(ClaudeCodeService::class);
         $claudeService->shouldReceive('execute')->once()->andReturn([
             'output' => json_encode(['session_id' => 'sess-55', 'result' => 'done']),
@@ -152,23 +143,14 @@ class ExecuteTaskJobTest extends TestCase
         $this->app->instance(GitHubService::class, $githubService);
 
         $previewService = Mockery::mock(PreviewService::class);
-        $previewService->shouldReceive('issueWorkspacePath')->with(55)->andReturn($workspacePath);
+        $previewService->shouldReceive('issueWorkspacePath')->with(55)->andReturn('/tmp/workspace-55');
         $previewService->shouldReceive('setup')->once();
+        $previewService->shouldReceive('buildFrontendIfChanged')->once()->with('/tmp/workspace-55');
         $this->app->instance(PreviewService::class, $previewService);
-
-        // Create a fake yarn script so `yarn build` doesn't fail
-        file_put_contents("{$frontendPath}/package.json", json_encode([
-            'name' => 'test',
-            'scripts' => ['build' => 'echo built'],
-        ]));
 
         $job = new ExecuteTaskJob(55);
         app()->call([$job, 'handle']);
 
-        // Cleanup
-        exec("rm -rf {$workspacePath}");
-
-        // If we get here without exception, the build ran without crashing the job
         $this->assertTrue(true);
     }
 
@@ -181,14 +163,6 @@ class ExecuteTaskJobTest extends TestCase
             'github_author' => 'pm-user',
             'status' => IssueStatus::SpecPassed->value,
         ]);
-
-        $workspacePath = sys_get_temp_dir() . '/sdd-test-issue-56-' . uniqid();
-        $frontendPath = $workspacePath . '/waltily-frontend';
-        mkdir($frontendPath, 0755, true);
-
-        // Init a git repo with no uncommitted changes
-        exec("git -C {$frontendPath} init");
-        exec("git -C {$frontendPath} commit --allow-empty -m 'init'");
 
         $claudeService = Mockery::mock(ClaudeCodeService::class);
         $claudeService->shouldReceive('execute')->once()->andReturn([
@@ -208,14 +182,13 @@ class ExecuteTaskJobTest extends TestCase
         $this->app->instance(GitHubService::class, $githubService);
 
         $previewService = Mockery::mock(PreviewService::class);
-        $previewService->shouldReceive('issueWorkspacePath')->with(56)->andReturn($workspacePath);
+        $previewService->shouldReceive('issueWorkspacePath')->with(56)->andReturn('/tmp/workspace-56');
         $previewService->shouldReceive('setup')->once();
+        $previewService->shouldReceive('buildFrontendIfChanged')->once()->with('/tmp/workspace-56');
         $this->app->instance(PreviewService::class, $previewService);
 
         $job = new ExecuteTaskJob(56);
         app()->call([$job, 'handle']);
-
-        exec("rm -rf {$workspacePath}");
 
         $this->assertTrue(true);
     }
@@ -229,10 +202,6 @@ class ExecuteTaskJobTest extends TestCase
             'github_author' => 'pm-user',
             'status' => IssueStatus::SpecPassed->value,
         ]);
-
-        $workspacePath = sys_get_temp_dir() . '/sdd-test-issue-57-' . uniqid();
-        // Do NOT create waltily-frontend inside workspacePath
-        mkdir($workspacePath, 0755, true);
 
         $claudeService = Mockery::mock(ClaudeCodeService::class);
         $claudeService->shouldReceive('execute')->once()->andReturn([
@@ -252,14 +221,13 @@ class ExecuteTaskJobTest extends TestCase
         $this->app->instance(GitHubService::class, $githubService);
 
         $previewService = Mockery::mock(PreviewService::class);
-        $previewService->shouldReceive('issueWorkspacePath')->with(57)->andReturn($workspacePath);
+        $previewService->shouldReceive('issueWorkspacePath')->with(57)->andReturn('/tmp/workspace-57');
         $previewService->shouldReceive('setup')->once();
+        $previewService->shouldReceive('buildFrontendIfChanged')->once()->with('/tmp/workspace-57');
         $this->app->instance(PreviewService::class, $previewService);
 
         $job = new ExecuteTaskJob(57);
         app()->call([$job, 'handle']);
-
-        exec("rm -rf {$workspacePath}");
 
         $this->assertTrue(true);
     }
