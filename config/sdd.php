@@ -24,7 +24,6 @@ return [
 
     'preview' => [
         'domain' => env('PREVIEW_DOMAIN', 'dev.waltily.tw'),
-        'nginx_config_path' => env('NGINX_CONFIG_PATH', '/etc/nginx/sites-enabled'),
     ],
 
     'database' => [

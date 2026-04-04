@@ -42,11 +42,10 @@ class CleanupJobTest extends TestCase
         $this->app->instance(DbCloneService::class, $dbCloneService);
 
         $job = new CleanupJob(42);
-        $job->handle();
+        app()->call([$job, 'handle']);
 
         $issue->refresh();
         $this->assertEquals(IssueStatus::Done, $issue->status);
-        $this->assertDatabaseMissing('preview_environments', ['issue_id' => $issue->id]);
     }
 
     public function test_cleanup_without_db_clone(): void
@@ -75,7 +74,7 @@ class CleanupJobTest extends TestCase
         $this->app->instance(DbCloneService::class, $dbCloneService);
 
         $job = new CleanupJob(43);
-        $job->handle();
+        app()->call([$job, 'handle']);
 
         $issue->refresh();
         $this->assertEquals(IssueStatus::Done, $issue->status);

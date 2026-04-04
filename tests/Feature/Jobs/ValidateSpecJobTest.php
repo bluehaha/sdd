@@ -41,6 +41,7 @@ class ValidateSpecJobTest extends TestCase
         $this->app->instance(ClaudeCodeService::class, $claudeService);
 
         $githubService = Mockery::mock(GitHubService::class);
+        $githubService->shouldReceive('removeLabel')->once()->with('sdd', 42, 'spec_ready');
         $githubService->shouldReceive('addLabel')->once()->with('sdd', 42, 'spec_pass');
         $githubService->shouldReceive('postComment')->once();
         $this->app->instance(GitHubService::class, $githubService);
@@ -52,7 +53,7 @@ class ValidateSpecJobTest extends TestCase
         config(['sdd.github.sdd_repo' => 'sdd']);
 
         $job = new ValidateSpecJob(42);
-        $job->handle();
+        app()->call([$job, 'handle']);
 
         $issue->refresh();
         $this->assertEquals(IssueStatus::SpecPassed, $issue->status);
@@ -95,7 +96,7 @@ class ValidateSpecJobTest extends TestCase
         config(['sdd.github.sdd_repo' => 'sdd']);
 
         $job = new ValidateSpecJob(42);
-        $job->handle();
+        app()->call([$job, 'handle']);
 
         $issue->refresh();
         $this->assertEquals(IssueStatus::Pending, $issue->status);
@@ -131,6 +132,7 @@ class ValidateSpecJobTest extends TestCase
         $this->app->instance(ClaudeCodeService::class, $claudeService);
 
         $githubService = Mockery::mock(GitHubService::class);
+        $githubService->shouldReceive('removeLabel')->once()->with('sdd', 42, 'spec_ready');
         $githubService->shouldReceive('addLabel')->once();
         $githubService->shouldReceive('postComment')->once();
         $this->app->instance(GitHubService::class, $githubService);
@@ -142,7 +144,7 @@ class ValidateSpecJobTest extends TestCase
         config(['sdd.github.sdd_repo' => 'sdd']);
 
         $job = new ValidateSpecJob(42);
-        $job->handle();
+        app()->call([$job, 'handle']);
 
         $issue->refresh();
         $this->assertEquals(IssueStatus::SpecPassed, $issue->status);

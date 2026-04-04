@@ -6,6 +6,7 @@ use App\Enums\IssueStatus;
 use App\Jobs\ExecuteTaskJob;
 use App\Models\Issue;
 use App\Services\ClaudeCodeService;
+use App\Services\GitHubService;
 use App\Services\PreviewService;
 use App\Services\SlackService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -38,16 +39,22 @@ class ExecuteTaskJobTest extends TestCase
         $this->app->instance(ClaudeCodeService::class, $claudeService);
 
         $slackService = Mockery::mock(SlackService::class);
-        $slackService->shouldReceive('notifyPm')->never();
+        $slackService->shouldReceive('notifyPm')->once();
         $this->app->instance(SlackService::class, $slackService);
 
+        $githubService = Mockery::mock(GitHubService::class);
+        $githubService->shouldReceive('postComment')->once();
+        $this->app->instance(GitHubService::class, $githubService);
+
         $previewService = Mockery::mock(PreviewService::class);
-        $previewService->shouldReceive('workspacePath')->with(42)->andReturn('/var/www/sdd/workspaces/issue-42');
-        $previewService->shouldReceive('setup')->once()->with(42, 'feature/issue-42');
+        $previewService->shouldReceive('issueWorkspacePath')->with(42)->andReturn('/var/www/sdd/workspaces/issue-42');
+        $previewService->shouldReceive('setup')->once()->withArgs(function ($issueArg, $branch) use ($issue) {
+            return $issueArg->is($issue) && $branch === 'feature/issue-42';
+        });
         $this->app->instance(PreviewService::class, $previewService);
 
         $job = new ExecuteTaskJob(42);
-        $job->handle();
+        app()->call([$job, 'handle']);
 
         $issue->refresh();
         $this->assertEquals(IssueStatus::Developing, $issue->status);
@@ -90,13 +97,17 @@ class ExecuteTaskJobTest extends TestCase
             });
         $this->app->instance(SlackService::class, $slackService);
 
+        $githubService = Mockery::mock(GitHubService::class);
+        $githubService->shouldReceive('postComment')->once();
+        $this->app->instance(GitHubService::class, $githubService);
+
         $previewService = Mockery::mock(PreviewService::class);
-        $previewService->shouldReceive('workspacePath')->with(42)->andReturn('/var/www/sdd/workspaces/issue-42');
+        $previewService->shouldReceive('issueWorkspacePath')->with(42)->andReturn('/var/www/sdd/workspaces/issue-42');
         $previewService->shouldNotReceive('setup');
         $this->app->instance(PreviewService::class, $previewService);
 
         $job = new ExecuteTaskJob(42, 'Fix the button color');
-        $job->handle();
+        app()->call([$job, 'handle']);
 
         $issue->refresh();
         $this->assertEquals(IssueStatus::Developing, $issue->status);

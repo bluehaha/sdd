@@ -42,11 +42,11 @@ class CreatePrJobTest extends TestCase
         $githubService->shouldReceive('commit')->twice();
         $githubService->shouldReceive('push')->twice();
         $githubService->shouldReceive('createPullRequest')
-            ->with('waltily', 'feat/issue-42', 'develop', Mockery::type('string'), Mockery::type('string'))
+            ->with('waltily', 'feat/issue-42', 'main', Mockery::type('string'), Mockery::type('string'))
             ->once()
             ->andReturn(['number' => 99, 'html_url' => 'https://github.com/Waltily-Inc/waltily/pull/99']);
         $githubService->shouldReceive('createPullRequest')
-            ->with('waltily-frontend', 'feat/issue-42', 'develop', Mockery::type('string'), Mockery::type('string'))
+            ->with('waltily-frontend', 'feat/issue-42', 'main', Mockery::type('string'), Mockery::type('string'))
             ->once()
             ->andReturn(['number' => 50, 'html_url' => 'https://github.com/Waltily-Inc/waltily-frontend/pull/50']);
         $githubService->shouldReceive('postComment')->once();
@@ -57,7 +57,7 @@ class CreatePrJobTest extends TestCase
         $this->app->instance(SlackService::class, $slackService);
 
         $job = new CreatePrJob(42);
-        $job->handle();
+        app()->call([$job, 'handle']);
 
         $issue->refresh();
         $this->assertEquals(IssueStatus::Approved, $issue->status);
@@ -82,18 +82,19 @@ class CreatePrJobTest extends TestCase
         $githubService->shouldNotReceive('commit');
         $githubService->shouldNotReceive('push');
         $githubService->shouldNotReceive('createPullRequest');
-        $githubService->shouldReceive('postComment')->once();
+        $githubService->shouldNotReceive('postComment');
         $this->app->instance(GitHubService::class, $githubService);
 
         $slackService = Mockery::mock(SlackService::class);
-        $slackService->shouldReceive('notifyPm')->once();
+        $slackService->shouldNotReceive('notifyPm');
         $this->app->instance(SlackService::class, $slackService);
 
         $job = new CreatePrJob(43);
-        $job->handle();
 
-        $issue->refresh();
-        $this->assertEquals(IssueStatus::Approved, $issue->status);
+        $this->expectException(\RuntimeException::class);
+        $this->expectExceptionMessageMatches('/Issue #43.*all PRs failed/i');
+
+        app()->call([$job, 'handle']);
     }
 
     public function test_fails_job_when_commits_made_but_all_prs_fail(): void
@@ -128,7 +129,7 @@ class CreatePrJobTest extends TestCase
         $this->expectException(\RuntimeException::class);
         $this->expectExceptionMessageMatches('/Issue #45.*all PRs failed/i');
 
-        $job->handle();
+        app()->call([$job, 'handle']);
     }
 
     public function test_commits_and_pushes_before_creating_pr(): void
@@ -156,7 +157,7 @@ class CreatePrJobTest extends TestCase
         $githubService->shouldReceive('push')
             ->with('waltily', $repoPath, 'feat/issue-44')->once();
         $githubService->shouldReceive('createPullRequest')
-            ->with('waltily', 'feat/issue-44', 'develop', '[SDD #44] Add dashboard', Mockery::type('string'))
+            ->with('waltily', 'feat/issue-44', 'main', '[SDD #44] Add dashboard', Mockery::type('string'))
             ->once()
             ->andReturn(['number' => 101, 'html_url' => 'https://github.com/Waltily-Inc/waltily/pull/101']);
         $githubService->shouldReceive('postComment')->once();
@@ -167,6 +168,6 @@ class CreatePrJobTest extends TestCase
         $this->app->instance(SlackService::class, $slackService);
 
         $job = new CreatePrJob(44);
-        $job->handle();
+        app()->call([$job, 'handle']);
     }
 }
