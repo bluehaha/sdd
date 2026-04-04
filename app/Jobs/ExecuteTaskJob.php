@@ -48,7 +48,7 @@ class ExecuteTaskJob implements ShouldQueue
         $issueWorkspacePath = $previewService->issueWorkspacePath($this->issueNumber);
 
         if (!$isResume) {
-            $previewService->setup($this->issueNumber, $featureBranch);
+            $previewService->setup($issue, $featureBranch);
         }
 
         $prompt = $isResume

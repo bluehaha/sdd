@@ -2,6 +2,8 @@
 
 namespace App\Services;
 
+use App\Models\Issue;
+use App\Models\PreviewEnvironment;
 use Illuminate\Support\Facades\Log;
 use Symfony\Component\Process\Process;
 
@@ -18,8 +20,9 @@ class PreviewService
         $this->workspaceBasePath = $workspaceBasePath ?? config('sdd.workspace_path');
     }
 
-    public function setup(int $issueNumber, string $featureBranch, ?string $clonedDbName = null): string
+    public function setup(Issue $issue, string $featureBranch, ?string $clonedDbName = null): string
     {
+        $issueNumber = $issue->github_issue_number;
         $subdomain = $this->generateSubdomain($issueNumber);
         $workspace = $this->issueWorkspacePath($issueNumber);
 
