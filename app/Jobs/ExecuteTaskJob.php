@@ -15,6 +15,8 @@ use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Bus\Dispatchable;
 use Illuminate\Queue\InteractsWithQueue;
 use Illuminate\Queue\SerializesModels;
+use Illuminate\Support\Facades\Log;
+use Symfony\Component\Process\Process;
 
 class ExecuteTaskJob implements ShouldQueue
 {
@@ -61,6 +63,7 @@ class ExecuteTaskJob implements ShouldQueue
 
         $result = $claudeService->execute($prompt, $issueWorkspacePath, $sessionId);
 
+
         if ($result['session_id']) {
             $issueService->saveDevSessionId($issue, $result['session_id']);
         }
@@ -74,6 +77,8 @@ class ExecuteTaskJob implements ShouldQueue
             'exit_code' => $result['exit_code'],
             'duration_seconds' => $result['duration_seconds'],
         ]);
+
+        $this->buildFrontendIfChanged($issueWorkspacePath);
 
         $sddRepo = config('sdd.github.sdd_repo');
         $parsed = json_decode($result['output'], true);
@@ -117,5 +122,51 @@ class ExecuteTaskJob implements ShouldQueue
 
             處理回饋意見，更新實作內容，提交變更。
             PROMPT;
+    }
+
+    private function buildFrontendIfChanged(string $issueWorkspacePath): void
+    {
+        $frontendPath = $issueWorkspacePath . '/waltily-frontend';
+
+        if (!is_dir($frontendPath)) {
+            Log::info('Frontend build skipped: directory not found', ['path' => $frontendPath]);
+            return;
+        }
+
+        $diff = new Process(['git', 'diff', 'HEAD~1', '--name-only']);
+        $diff->setWorkingDirectory($frontendPath);
+        $diff->setTimeout(30);
+        $diff->run();
+
+        if (!$diff->isSuccessful()) {
+            Log::warning('Frontend build skipped: git diff failed', [
+                'path' => $frontendPath,
+                'error' => $diff->getErrorOutput(),
+            ]);
+            return;
+        }
+
+        if (trim($diff->getOutput()) === '') {
+            Log::info('Frontend build skipped: no changes detected', ['path' => $frontendPath]);
+            return;
+        }
+
+        Log::info('Frontend changes detected, running yarn build', ['path' => $frontendPath]);
+
+        $build = new Process(['yarn', 'build']);
+        $build->setWorkingDirectory($frontendPath);
+        $build->setTimeout(300);
+        $build->run();
+
+        if (!$build->isSuccessful()) {
+            Log::error('Frontend build failed', [
+                'path' => $frontendPath,
+                'error' => $build->getErrorOutput(),
+                'output' => $build->getOutput(),
+            ]);
+            return;
+        }
+
+        Log::info('Frontend build completed', ['path' => $frontendPath]);
     }
 }

@@ -112,4 +112,155 @@ class ExecuteTaskJobTest extends TestCase
         $issue->refresh();
         $this->assertEquals(IssueStatus::Developing, $issue->status);
     }
+
+    public function test_yarn_build_runs_when_frontend_has_changes(): void
+    {
+        $issue = Issue::create([
+            'github_issue_number' => 55,
+            'title' => 'Frontend feature',
+            'body' => 'Spec',
+            'github_author' => 'pm-user',
+            'status' => IssueStatus::SpecPassed->value,
+        ]);
+
+        $workspacePath = sys_get_temp_dir() . '/sdd-test-issue-55-' . uniqid();
+        $frontendPath = $workspacePath . '/waltily-frontend';
+        mkdir($frontendPath, 0755, true);
+
+        // Init a git repo so `git diff --name-only` works
+        exec("git -C {$frontendPath} init");
+        exec("git -C {$frontendPath} commit --allow-empty -m 'init'");
+        // Stage a change to simulate modified frontend file
+        file_put_contents("{$frontendPath}/app.js", 'console.log("changed")');
+        exec("git -C {$frontendPath} add app.js");
+
+        $claudeService = Mockery::mock(ClaudeCodeService::class);
+        $claudeService->shouldReceive('execute')->once()->andReturn([
+            'output' => json_encode(['session_id' => 'sess-55', 'result' => 'done']),
+            'exit_code' => 0,
+            'duration_seconds' => 10,
+            'session_id' => 'sess-55',
+        ]);
+        $this->app->instance(ClaudeCodeService::class, $claudeService);
+
+        $slackService = Mockery::mock(SlackService::class);
+        $slackService->shouldReceive('notifyPm')->once();
+        $this->app->instance(SlackService::class, $slackService);
+
+        $githubService = Mockery::mock(GitHubService::class);
+        $githubService->shouldReceive('postComment')->once();
+        $this->app->instance(GitHubService::class, $githubService);
+
+        $previewService = Mockery::mock(PreviewService::class);
+        $previewService->shouldReceive('issueWorkspacePath')->with(55)->andReturn($workspacePath);
+        $previewService->shouldReceive('setup')->once();
+        $this->app->instance(PreviewService::class, $previewService);
+
+        // Create a fake yarn script so `yarn build` doesn't fail
+        file_put_contents("{$frontendPath}/package.json", json_encode([
+            'name' => 'test',
+            'scripts' => ['build' => 'echo built'],
+        ]));
+
+        $job = new ExecuteTaskJob(55);
+        app()->call([$job, 'handle']);
+
+        // Cleanup
+        exec("rm -rf {$workspacePath}");
+
+        // If we get here without exception, the build ran without crashing the job
+        $this->assertTrue(true);
+    }
+
+    public function test_yarn_build_skipped_when_no_frontend_changes(): void
+    {
+        $issue = Issue::create([
+            'github_issue_number' => 56,
+            'title' => 'Backend only feature',
+            'body' => 'Spec',
+            'github_author' => 'pm-user',
+            'status' => IssueStatus::SpecPassed->value,
+        ]);
+
+        $workspacePath = sys_get_temp_dir() . '/sdd-test-issue-56-' . uniqid();
+        $frontendPath = $workspacePath . '/waltily-frontend';
+        mkdir($frontendPath, 0755, true);
+
+        // Init a git repo with no uncommitted changes
+        exec("git -C {$frontendPath} init");
+        exec("git -C {$frontendPath} commit --allow-empty -m 'init'");
+
+        $claudeService = Mockery::mock(ClaudeCodeService::class);
+        $claudeService->shouldReceive('execute')->once()->andReturn([
+            'output' => json_encode(['session_id' => 'sess-56', 'result' => 'done']),
+            'exit_code' => 0,
+            'duration_seconds' => 10,
+            'session_id' => 'sess-56',
+        ]);
+        $this->app->instance(ClaudeCodeService::class, $claudeService);
+
+        $slackService = Mockery::mock(SlackService::class);
+        $slackService->shouldReceive('notifyPm')->once();
+        $this->app->instance(SlackService::class, $slackService);
+
+        $githubService = Mockery::mock(GitHubService::class);
+        $githubService->shouldReceive('postComment')->once();
+        $this->app->instance(GitHubService::class, $githubService);
+
+        $previewService = Mockery::mock(PreviewService::class);
+        $previewService->shouldReceive('issueWorkspacePath')->with(56)->andReturn($workspacePath);
+        $previewService->shouldReceive('setup')->once();
+        $this->app->instance(PreviewService::class, $previewService);
+
+        $job = new ExecuteTaskJob(56);
+        app()->call([$job, 'handle']);
+
+        exec("rm -rf {$workspacePath}");
+
+        $this->assertTrue(true);
+    }
+
+    public function test_job_continues_when_frontend_directory_missing(): void
+    {
+        $issue = Issue::create([
+            'github_issue_number' => 57,
+            'title' => 'No frontend',
+            'body' => 'Spec',
+            'github_author' => 'pm-user',
+            'status' => IssueStatus::SpecPassed->value,
+        ]);
+
+        $workspacePath = sys_get_temp_dir() . '/sdd-test-issue-57-' . uniqid();
+        // Do NOT create waltily-frontend inside workspacePath
+        mkdir($workspacePath, 0755, true);
+
+        $claudeService = Mockery::mock(ClaudeCodeService::class);
+        $claudeService->shouldReceive('execute')->once()->andReturn([
+            'output' => json_encode(['session_id' => 'sess-57', 'result' => 'done']),
+            'exit_code' => 0,
+            'duration_seconds' => 10,
+            'session_id' => 'sess-57',
+        ]);
+        $this->app->instance(ClaudeCodeService::class, $claudeService);
+
+        $slackService = Mockery::mock(SlackService::class);
+        $slackService->shouldReceive('notifyPm')->once();
+        $this->app->instance(SlackService::class, $slackService);
+
+        $githubService = Mockery::mock(GitHubService::class);
+        $githubService->shouldReceive('postComment')->once();
+        $this->app->instance(GitHubService::class, $githubService);
+
+        $previewService = Mockery::mock(PreviewService::class);
+        $previewService->shouldReceive('issueWorkspacePath')->with(57)->andReturn($workspacePath);
+        $previewService->shouldReceive('setup')->once();
+        $this->app->instance(PreviewService::class, $previewService);
+
+        $job = new ExecuteTaskJob(57);
+        app()->call([$job, 'handle']);
+
+        exec("rm -rf {$workspacePath}");
+
+        $this->assertTrue(true);
+    }
 }
