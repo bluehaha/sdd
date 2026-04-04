@@ -78,7 +78,7 @@ class ExecuteTaskJob implements ShouldQueue
             'duration_seconds' => $result['duration_seconds'],
         ]);
 
-        $previewService->buildFrontendIfChanged($issueWorkspacePath);
+        $previewService->buildFrontend($issueWorkspacePath);
 
         $this->postComment($githubService, $result);
 
