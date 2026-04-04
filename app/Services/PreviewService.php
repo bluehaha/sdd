@@ -27,6 +27,7 @@ class PreviewService
         $workspace = $this->issueWorkspacePath($issueNumber);
 
         $this->createWorkspace($workspace, $featureBranch);
+        $this->configureClaude($workspace);
         $this->configureEnv($workspace, $subdomain, $clonedDbName);
         // $this->installDependencies($workspace);
 
@@ -93,6 +94,14 @@ class PreviewService
             $process->setTimeout(60);
             $process->mustRun();
         }
+    }
+
+    private function configureClaude(string $workspace): void
+    {
+        $source = resource_path('SDD_CLAUDE.md');
+        $target = "{$workspace}/CLAUDE.md";
+
+        copy($source, $target);
     }
 
     private function configureEnv(string $workspace, string $subdomain, ?string $clonedDbName): void

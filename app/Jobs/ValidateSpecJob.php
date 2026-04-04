@@ -64,6 +64,7 @@ class ValidateSpecJob implements ShouldQueue
 
         if ($passed) {
             $issueService->transitionTo($issue, IssueStatus::SpecPassed);
+            $githubService->removeLabel($sddRepo, $this->issueNumber, 'spec_ready');
             $githubService->addLabel($sddRepo, $this->issueNumber, 'spec_pass');
             $githubService->postComment($sddRepo, $this->issueNumber, "Spec validated. Development will begin shortly.");
             $slackService->notifyPm($issue->github_author, "Spec for issue #{$this->issueNumber} passed validation. Development starting.");

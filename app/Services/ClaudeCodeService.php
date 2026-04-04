@@ -67,7 +67,8 @@ class ClaudeCodeService
             '--print',
             '--output-format', 'json',
             '--max-turns', (string) $this->maxTurns,
-            '--model', 'sonnet'
+            '--model', 'sonnet',
+            '--permission-mode', 'acceptEdits',
         ];
 
         if ($sessionId) {
