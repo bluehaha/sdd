@@ -10,7 +10,7 @@ use Illuminate\Database\Eloquent\Relations\HasOne;
 class Issue extends Model
 {
     protected $fillable = [
-        'github_issue_number',
+        'issue_number',
         'title',
         'body',
         'github_author',

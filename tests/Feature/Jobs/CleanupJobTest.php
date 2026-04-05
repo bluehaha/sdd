@@ -19,7 +19,7 @@ class CleanupJobTest extends TestCase
     public function test_cleanup_preview_and_db(): void
     {
         $issue = Issue::create([
-            'github_issue_number' => 42,
+            'issue_number' => 42,
             'title' => 'Add login',
             'body' => 'body',
             'github_author' => 'pm-user',
@@ -51,7 +51,7 @@ class CleanupJobTest extends TestCase
     public function test_cleanup_without_db_clone(): void
     {
         $issue = Issue::create([
-            'github_issue_number' => 43,
+            'issue_number' => 43,
             'title' => 'Fix button',
             'body' => 'body',
             'github_author' => 'pm-user',

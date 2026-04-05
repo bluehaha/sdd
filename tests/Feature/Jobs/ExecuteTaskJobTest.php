@@ -20,7 +20,7 @@ class ExecuteTaskJobTest extends TestCase
     public function test_first_run_creates_feature_branch_and_calls_setup(): void
     {
         $issue = Issue::create([
-            'github_issue_number' => 42,
+            'issue_number' => 42,
             'title' => 'Add login',
             'body' => 'Validated spec body',
             'github_author' => 'pm-user',
@@ -66,7 +66,7 @@ class ExecuteTaskJobTest extends TestCase
     public function test_resume_with_feedback_uses_existing_session(): void
     {
         $issue = Issue::create([
-            'github_issue_number' => 42,
+            'issue_number' => 42,
             'title' => 'Add login',
             'body' => 'Spec body',
             'github_author' => 'pm-user',
@@ -118,7 +118,7 @@ class ExecuteTaskJobTest extends TestCase
     public function test_yarn_build_runs_when_frontend_has_changes(): void
     {
         $issue = Issue::create([
-            'github_issue_number' => 55,
+            'issue_number' => 55,
             'title' => 'Frontend feature',
             'body' => 'Spec',
             'github_author' => 'pm-user',
@@ -157,7 +157,7 @@ class ExecuteTaskJobTest extends TestCase
     public function test_yarn_build_skipped_when_no_frontend_changes(): void
     {
         $issue = Issue::create([
-            'github_issue_number' => 56,
+            'issue_number' => 56,
             'title' => 'Backend only feature',
             'body' => 'Spec',
             'github_author' => 'pm-user',
@@ -196,7 +196,7 @@ class ExecuteTaskJobTest extends TestCase
     public function test_job_continues_when_frontend_directory_missing(): void
     {
         $issue = Issue::create([
-            'github_issue_number' => 57,
+            'issue_number' => 57,
             'title' => 'No frontend',
             'body' => 'Spec',
             'github_author' => 'pm-user',

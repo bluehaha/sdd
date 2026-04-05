@@ -11,7 +11,7 @@ return new class extends Migration
     {
         Schema::create('issues', function (Blueprint $table) {
             $table->id();
-            $table->unsignedInteger('github_issue_number');
+            $table->unsignedInteger('issue_number');
             $table->string('title');
             $table->text('body')->nullable();
             $table->string('github_author');
@@ -21,7 +21,7 @@ return new class extends Migration
             $table->string('feature_branch')->nullable();
             $table->timestamps();
 
-            $table->unique('github_issue_number');
+            $table->unique('issue_number');
         });
     }
 

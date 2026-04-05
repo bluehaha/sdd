@@ -28,7 +28,7 @@ class CreatePrJobTest extends TestCase
     public function test_creates_pr_on_target_repos(): void
     {
         $issue = Issue::create([
-            'github_issue_number' => 42,
+            'issue_number' => 42,
             'title' => 'Add login',
             'body' => 'Spec body',
             'github_author' => 'pm-user',
@@ -66,7 +66,7 @@ class CreatePrJobTest extends TestCase
     public function test_skips_repo_with_no_changes(): void
     {
         $issue = Issue::create([
-            'github_issue_number' => 43,
+            'issue_number' => 43,
             'title' => 'Add logout',
             'body' => 'Spec body',
             'github_author' => 'pm-user',
@@ -100,7 +100,7 @@ class CreatePrJobTest extends TestCase
     public function test_fails_job_when_commits_made_but_all_prs_fail(): void
     {
         $issue = Issue::create([
-            'github_issue_number' => 45,
+            'issue_number' => 45,
             'title' => 'Add notifications',
             'body' => 'Spec body',
             'github_author' => 'pm-user',
@@ -135,7 +135,7 @@ class CreatePrJobTest extends TestCase
     public function test_commits_and_pushes_before_creating_pr(): void
     {
         $issue = Issue::create([
-            'github_issue_number' => 44,
+            'issue_number' => 44,
             'title' => 'Add dashboard',
             'body' => 'Spec body',
             'github_author' => 'pm-user',

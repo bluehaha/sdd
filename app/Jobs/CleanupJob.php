@@ -28,7 +28,7 @@ class CleanupJob implements ShouldQueue
         PreviewService $previewService,
         DbCloneService $dbCloneService,
     ): void {
-        $issue = Issue::where('github_issue_number', $this->issueNumber)->firstOrFail();
+        $issue = Issue::where('issue_number', $this->issueNumber)->firstOrFail();
         $preview = $issue->previewEnvironment;
 
         if ($preview) {

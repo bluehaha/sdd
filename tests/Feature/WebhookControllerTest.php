@@ -61,7 +61,7 @@ class WebhookControllerTest extends TestCase
     public function test_spec_pass_label_dispatches_execute_task_job(): void
     {
         Issue::create([
-            'github_issue_number' => 42,
+            'issue_number' => 42,
             'title' => 'Add login',
             'body' => 'body',
             'github_author' => 'pm-user',
@@ -93,7 +93,7 @@ class WebhookControllerTest extends TestCase
     public function test_approved_label_dispatches_create_pr_job(): void
     {
         Issue::create([
-            'github_issue_number' => 42,
+            'issue_number' => 42,
             'title' => 'Add login',
             'body' => 'body',
             'github_author' => 'pm-user',
@@ -126,7 +126,7 @@ class WebhookControllerTest extends TestCase
     public function test_issue_comment_dispatches_execute_task_with_resume(): void
     {
         Issue::create([
-            'github_issue_number' => 42,
+            'issue_number' => 42,
             'title' => 'Add login',
             'body' => 'body',
             'github_author' => 'pm-user',
@@ -166,7 +166,7 @@ class WebhookControllerTest extends TestCase
     public function test_issue_closed_dispatches_cleanup_job(): void
     {
         Issue::create([
-            'github_issue_number' => 42,
+            'issue_number' => 42,
             'title' => 'Add login',
             'body' => 'body',
             'github_author' => 'pm-user',

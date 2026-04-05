@@ -35,7 +35,7 @@ class CreatePrJob implements ShouldQueue
         SlackService $slackService,
         PreviewService $previewService,
     ): void {
-        $issue = Issue::where('github_issue_number', $this->issueNumber)->firstOrFail();
+        $issue = Issue::where('issue_number', $this->issueNumber)->firstOrFail();
         $sddRepo = config('sdd.github.sdd_repo');
         $targetRepos = config('sdd.github.target_repos');
         $commitMessage = "feat: issue #{$this->issueNumber} {$issue->title}";

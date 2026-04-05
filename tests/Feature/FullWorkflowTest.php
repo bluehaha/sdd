@@ -51,7 +51,7 @@ class FullWorkflowTest extends TestCase
 
         Queue::assertPushed(ValidateSpecJob::class);
         $this->assertDatabaseHas('issues', [
-            'github_issue_number' => 1,
+            'issue_number' => 1,
             'github_author' => 'pm-alice',
         ]);
 
@@ -72,7 +72,7 @@ class FullWorkflowTest extends TestCase
         });
 
         // Step 3: PM adds feedback comment
-        $issue = Issue::where('github_issue_number', 1)->first();
+        $issue = Issue::where('issue_number', 1)->first();
         $issue->update([
             'status' => IssueStatus::PreviewReady->value,
             'dev_session_id' => 'dev-sess-1',

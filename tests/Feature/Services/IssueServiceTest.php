@@ -25,17 +25,17 @@ class IssueServiceTest extends TestCase
         $issue = $this->service->findOrCreateIssue(42, 'Add login', 'Spec body', 'pm-user');
 
         $this->assertDatabaseHas('issues', [
-            'github_issue_number' => 42,
+            'issue_number' => 42,
             'title' => 'Add login',
             'status' => IssueStatus::Pending->value,
         ]);
-        $this->assertEquals(42, $issue->github_issue_number);
+        $this->assertEquals(42, $issue->issue_number);
     }
 
     public function test_find_or_create_issue_returns_existing(): void
     {
         Issue::create([
-            'github_issue_number' => 42,
+            'issue_number' => 42,
             'title' => 'Add login',
             'body' => 'Spec body',
             'github_author' => 'pm-user',
@@ -51,7 +51,7 @@ class IssueServiceTest extends TestCase
     public function test_transition_status(): void
     {
         $issue = Issue::create([
-            'github_issue_number' => 42,
+            'issue_number' => 42,
             'title' => 'Add login',
             'body' => 'body',
             'github_author' => 'pm-user',
@@ -67,7 +67,7 @@ class IssueServiceTest extends TestCase
     public function test_save_spec_session_id(): void
     {
         $issue = Issue::create([
-            'github_issue_number' => 42,
+            'issue_number' => 42,
             'title' => 'Add login',
             'body' => 'body',
             'github_author' => 'pm-user',
@@ -82,7 +82,7 @@ class IssueServiceTest extends TestCase
     public function test_save_dev_session_id(): void
     {
         $issue = Issue::create([
-            'github_issue_number' => 42,
+            'issue_number' => 42,
             'title' => 'Add login',
             'body' => 'body',
             'github_author' => 'pm-user',

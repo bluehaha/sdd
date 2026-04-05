@@ -36,7 +36,7 @@ class ExecuteTaskJob implements ShouldQueue
         SlackService $slackService,
         PreviewService $previewService,
     ): void {
-        $issue = Issue::where('github_issue_number', $this->issueNumber)->firstOrFail();
+        $issue = Issue::where('issue_number', $this->issueNumber)->firstOrFail();
 
         $isResume = $this->feedbackComment !== null;
         $featureBranch = $issue->feature_branch ?? "feature/issue-{$this->issueNumber}";
@@ -90,7 +90,7 @@ class ExecuteTaskJob implements ShouldQueue
         return <<<PROMPT
             你正在根據以下規格實作一個功能。
 
-            ## Issue #{$issue->github_issue_number}: {$issue->title}
+            ## Issue #{$issue->issue_number}: {$issue->title}
 
             {$issue->body}
 
@@ -106,7 +106,7 @@ class ExecuteTaskJob implements ShouldQueue
     private function buildResumePrompt(Issue $issue, string $feedback): string
     {
         return <<<PROMPT
-            PM 已針對 issue #{$issue->github_issue_number} 的實作提供回饋。
+            PM 已針對 issue #{$issue->issue_number} 的實作提供回饋。
 
             ## PM 回饋
 

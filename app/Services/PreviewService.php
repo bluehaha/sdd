@@ -22,7 +22,7 @@ class PreviewService
 
     public function setup(Issue $issue, string $featureBranch, ?string $clonedDbName = null): string
     {
-        $issueNumber = $issue->github_issue_number;
+        $issueNumber = $issue->issue_number;
         $subdomain = $this->generateSubdomain($issueNumber);
         $workspace = $this->issueWorkspacePath($issueNumber);
 

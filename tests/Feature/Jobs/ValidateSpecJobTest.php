@@ -19,7 +19,7 @@ class ValidateSpecJobTest extends TestCase
     public function test_spec_passes_validation(): void
     {
         $issue = Issue::create([
-            'github_issue_number' => 42,
+            'issue_number' => 42,
             'title' => 'Add login',
             'body' => 'Clear spec with acceptance criteria',
             'github_author' => 'pm-user',
@@ -63,7 +63,7 @@ class ValidateSpecJobTest extends TestCase
     public function test_spec_fails_validation(): void
     {
         $issue = Issue::create([
-            'github_issue_number' => 42,
+            'issue_number' => 42,
             'title' => 'Add login',
             'body' => 'Vague spec',
             'github_author' => 'pm-user',
@@ -106,7 +106,7 @@ class ValidateSpecJobTest extends TestCase
     public function test_resume_uses_existing_session(): void
     {
         $issue = Issue::create([
-            'github_issue_number' => 42,
+            'issue_number' => 42,
             'title' => 'Add login',
             'body' => 'Updated spec',
             'github_author' => 'pm-user',

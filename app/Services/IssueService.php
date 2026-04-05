@@ -14,7 +14,7 @@ class IssueService
         string $githubAuthor
     ): Issue {
         return Issue::firstOrCreate(
-            ['github_issue_number' => $issueNumber],
+            ['issue_number' => $issueNumber],
             [
                 'title' => $title,
                 'body' => $body,

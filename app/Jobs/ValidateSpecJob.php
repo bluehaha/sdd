@@ -33,7 +33,7 @@ class ValidateSpecJob implements ShouldQueue
         GitHubService $githubService,
         SlackService $slackService,
     ): void {
-        $issue = Issue::where('github_issue_number', $this->issueNumber)->firstOrFail();
+        $issue = Issue::where('issue_number', $this->issueNumber)->firstOrFail();
         $issueService->transitionTo($issue, IssueStatus::SpecValidating);
 
         $sddRepo = config('sdd.github.sdd_repo');
@@ -82,7 +82,7 @@ class ValidateSpecJob implements ShouldQueue
         return <<<PROMPT
             You are reviewing a feature spec for clarity and completeness.
 
-            ## Issue #{$issue->github_issue_number}: {$issue->title}
+            ## Issue #{$issue->issue_number}: {$issue->title}
 
             {$issue->body}
 
