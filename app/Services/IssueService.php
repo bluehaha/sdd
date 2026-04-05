@@ -20,6 +20,7 @@ class IssueService
                 'body' => $body,
                 'github_author' => $githubAuthor,
                 'status' => IssueStatus::Pending->value,
+                'feature_branch' => "feature/issue-{$issueNumber}",
             ]
         );
     }
@@ -37,10 +38,5 @@ class IssueService
     public function saveDevSessionId(Issue $issue, string $sessionId): void
     {
         $issue->update(['dev_session_id' => $sessionId]);
-    }
-
-    public function saveFeatureBranch(Issue $issue, string $branch): void
-    {
-        $issue->update(['feature_branch' => $branch]);
     }
 }

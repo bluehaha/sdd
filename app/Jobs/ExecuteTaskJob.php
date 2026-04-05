@@ -39,23 +39,18 @@ class ExecuteTaskJob implements ShouldQueue
         $issue = Issue::where('issue_number', $this->issueNumber)->firstOrFail();
 
         $isResume = $this->feedbackComment !== null;
-        $featureBranch = $issue->feature_branch ?? "feature/issue-{$this->issueNumber}";
-
-        if (!$issue->feature_branch) {
-            $issueService->saveFeatureBranch($issue, $featureBranch);
-        }
 
         $issueService->transitionTo($issue, IssueStatus::Developing);
 
         $issueWorkspacePath = $previewService->issueWorkspacePath($this->issueNumber);
 
-        if (!$isResume) {
-            $previewService->setup($issue, $featureBranch);
+        if (! $isResume) {
+            $previewService->setup($issue);
         }
 
         $prompt = $isResume
             ? $this->buildResumePrompt($issue, $this->feedbackComment)
-            : $this->buildFirstRunPrompt($issue, $featureBranch);
+            : $this->buildFirstRunPrompt($issue);
 
         $sessionId = $issue->dev_session_id;
 
@@ -85,7 +80,7 @@ class ExecuteTaskJob implements ShouldQueue
         );
     }
 
-    private function buildFirstRunPrompt(Issue $issue, string $featureBranch): string
+    private function buildFirstRunPrompt(Issue $issue): string
     {
         return <<<PROMPT
             你正在根據以下規格實作一個功能。
@@ -96,10 +91,9 @@ class ExecuteTaskJob implements ShouldQueue
 
             ## 指示
 
-            1. 建立功能分支：{$featureBranch}
-            2. 分析需求
-            3. 在 waltily 和/或 waltily-frontend 專案中實作該功能
-            4. 如適用，撰寫測試
+            1. 分析需求
+            2. 在 waltily 和/或 waltily-frontend 專案中實作該功能
+            3. 如適用，撰寫測試
             PROMPT;
     }
 
