@@ -20,22 +20,23 @@ class PreviewService
         $this->workspaceBasePath = $workspaceBasePath ?? config('sdd.workspace_path');
     }
 
-    public function setup(Issue $issue, string $featureBranch, ?string $clonedDbName = null): string
+    public function setup(Issue $issue): string
     {
         $issueNumber = $issue->issue_number;
+        $featureBranch = $issue->feature_branch;
         $subdomain = $this->generateSubdomain($issueNumber);
-        $workspace = $this->issueWorkspacePath($issueNumber);
+        $mainWorkspace = $this->mainWorkspacePath();
+        $issueWorkspace = $this->issueWorkspacePath($issueNumber);
 
-        $this->createWorkspace($workspace, $featureBranch);
-        $this->configureClaude($workspace);
-        $this->configureEnv($workspace, $subdomain, $clonedDbName);
-        // $this->installDependencies($workspace);
+        $this->createWorkspace($issueWorkspace, $featureBranch);
+        $this->configureClaude($issueWorkspace);
+        $this->configureEnv($mainWorkspace, $issueWorkspace, $subdomain);
+        $this->installDependencies($issueWorkspace);
 
         PreviewEnvironment::create([
             'issue_id' => $issue->id,
             'subdomain' => $subdomain,
-            'workspace_path' => $workspace,
-            'cloned_db_name' => $clonedDbName,
+            'workspace_path' => $issueWorkspace,
         ]);
 
         Log::info("Preview environment created", [
@@ -86,7 +87,7 @@ class PreviewService
         Log::info('Frontend build completed', ['path' => $frontendPath]);
     }
 
-    public function generateSubdomain(int $issueNumber): string
+    private function generateSubdomain(int $issueNumber): string
     {
         return "issue-{$issueNumber}.{$this->domain}";
     }
@@ -125,23 +126,14 @@ class PreviewService
         copy($source, $target);
     }
 
-    private function configureEnv(string $workspace, string $subdomain, ?string $clonedDbName): void
+    private function configureEnv(string $mainWorkspace, string $issueWorkspace, string $subdomain): void
     {
-        $envSource = "{$workspace}/waltily/.env.example";
-        $envTarget = "{$workspace}/waltily/.env";
+        $envSource = "{$mainWorkspace}/waltily/.env";
+        $envTarget = "{$issueWorkspace}/waltily/.env";
 
-        if (file_exists($envSource)) {
-            copy($envSource, $envTarget);
-        }
-
-        if (file_exists($envTarget)) {
-            $env = file_get_contents($envTarget);
-            $env = preg_replace('/^APP_URL=.*/m', "APP_URL=https://{$subdomain}", $env);
-            if ($clonedDbName) {
-                $env = preg_replace('/^DB_DATABASE=.*/m', "DB_DATABASE={$clonedDbName}", $env);
-            }
-            file_put_contents($envTarget, $env);
-        }
+        $env = file_get_contents($envSource);
+        $env = preg_replace('/^APP_URL=.*/m', "APP_URL=https://{$subdomain}", $env);
+        file_put_contents($envTarget, $env);
     }
 
     private function installDependencies(string $workspace): void

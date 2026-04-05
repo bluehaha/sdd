@@ -7,13 +7,6 @@ use Tests\TestCase;
 
 class PreviewServiceTest extends TestCase
 {
-    public function test_generate_subdomain(): void
-    {
-        $service = new PreviewService('dev.waltily.tw', '/var/www/sdd/workspaces');
-        $subdomain = $service->generateSubdomain(42);
-        $this->assertEquals('issue-42.dev.waltily.tw', $subdomain);
-    }
-
     public function test_workspace_path(): void
     {
         $service = new PreviewService('dev.waltily.tw', '/var/www/sdd/workspaces');
