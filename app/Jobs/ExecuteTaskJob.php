@@ -15,8 +15,6 @@ use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Bus\Dispatchable;
 use Illuminate\Queue\InteractsWithQueue;
 use Illuminate\Queue\SerializesModels;
-use Illuminate\Support\Facades\Log;
-use Symfony\Component\Process\Process;
 
 class ExecuteTaskJob implements ShouldQueue
 {
@@ -62,7 +60,6 @@ class ExecuteTaskJob implements ShouldQueue
         $sessionId = $issue->dev_session_id;
 
         $result = $claudeService->execute($prompt, $issueWorkspacePath, $sessionId);
-
 
         if (empty($issue->dev_session_id) && $result['session_id']) {
             $issueService->saveDevSessionId($issue, $result['session_id']);
