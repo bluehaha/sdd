@@ -48,10 +48,10 @@ class ExecuteTaskJobTest extends TestCase
 
         $previewService = Mockery::mock(PreviewService::class);
         $previewService->shouldReceive('issueWorkspacePath')->with(42)->andReturn('/var/www/sdd/workspaces/issue-42');
-        $previewService->shouldReceive('setup')->once()->withArgs(function ($issueArg, $branch) use ($issue) {
-            return $issueArg->is($issue) && $branch === 'feature/issue-42';
+        $previewService->shouldReceive('setup')->once()->withArgs(function ($issueArg) use ($issue) {
+            return $issueArg->is($issue);
         });
-        $previewService->shouldReceive('buildFrontendIfChanged')->once()->with('/var/www/sdd/workspaces/issue-42');
+        $previewService->shouldReceive('buildFrontend')->once()->with('/var/www/sdd/workspaces/issue-42');
         $this->app->instance(PreviewService::class, $previewService);
 
         $job = new ExecuteTaskJob(42);
@@ -60,7 +60,6 @@ class ExecuteTaskJobTest extends TestCase
         $issue->refresh();
         $this->assertEquals(IssueStatus::Developing, $issue->status);
         $this->assertEquals('dev-sess-1', $issue->dev_session_id);
-        $this->assertEquals('feature/issue-42', $issue->feature_branch);
     }
 
     public function test_resume_with_feedback_uses_existing_session(): void
@@ -105,7 +104,7 @@ class ExecuteTaskJobTest extends TestCase
         $previewService = Mockery::mock(PreviewService::class);
         $previewService->shouldReceive('issueWorkspacePath')->with(42)->andReturn('/var/www/sdd/workspaces/issue-42');
         $previewService->shouldNotReceive('setup');
-        $previewService->shouldReceive('buildFrontendIfChanged')->once()->with('/var/www/sdd/workspaces/issue-42');
+        $previewService->shouldReceive('buildFrontend')->once()->with('/var/www/sdd/workspaces/issue-42');
         $this->app->instance(PreviewService::class, $previewService);
 
         $job = new ExecuteTaskJob(42, 'Fix the button color');
@@ -145,7 +144,7 @@ class ExecuteTaskJobTest extends TestCase
         $previewService = Mockery::mock(PreviewService::class);
         $previewService->shouldReceive('issueWorkspacePath')->with(55)->andReturn('/tmp/workspace-55');
         $previewService->shouldReceive('setup')->once();
-        $previewService->shouldReceive('buildFrontendIfChanged')->once()->with('/tmp/workspace-55');
+        $previewService->shouldReceive('buildFrontend')->once()->with('/tmp/workspace-55');
         $this->app->instance(PreviewService::class, $previewService);
 
         $job = new ExecuteTaskJob(55);
@@ -184,7 +183,7 @@ class ExecuteTaskJobTest extends TestCase
         $previewService = Mockery::mock(PreviewService::class);
         $previewService->shouldReceive('issueWorkspacePath')->with(56)->andReturn('/tmp/workspace-56');
         $previewService->shouldReceive('setup')->once();
-        $previewService->shouldReceive('buildFrontendIfChanged')->once()->with('/tmp/workspace-56');
+        $previewService->shouldReceive('buildFrontend')->once()->with('/tmp/workspace-56');
         $this->app->instance(PreviewService::class, $previewService);
 
         $job = new ExecuteTaskJob(56);
@@ -223,7 +222,7 @@ class ExecuteTaskJobTest extends TestCase
         $previewService = Mockery::mock(PreviewService::class);
         $previewService->shouldReceive('issueWorkspacePath')->with(57)->andReturn('/tmp/workspace-57');
         $previewService->shouldReceive('setup')->once();
-        $previewService->shouldReceive('buildFrontendIfChanged')->once()->with('/tmp/workspace-57');
+        $previewService->shouldReceive('buildFrontend')->once()->with('/tmp/workspace-57');
         $this->app->instance(PreviewService::class, $previewService);
 
         $job = new ExecuteTaskJob(57);

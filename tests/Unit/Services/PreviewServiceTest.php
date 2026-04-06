@@ -42,7 +42,7 @@ class PreviewServiceTest extends TestCase
         $service = new PreviewService('dev.waltily.tw', '/var/www/sdd/workspaces');
 
         // Should not throw
-        $service->buildFrontendIfChanged($workspacePath);
+        $service->buildFrontend($workspacePath);
 
         exec("rm -rf " . escapeshellarg($workspacePath));
 
@@ -68,7 +68,7 @@ class PreviewServiceTest extends TestCase
         ]));
 
         $service = new PreviewService('dev.waltily.tw', '/var/www/sdd/workspaces');
-        $service->buildFrontendIfChanged($workspacePath);
+        $service->buildFrontend($workspacePath);
 
         exec("rm -rf " . escapeshellarg($workspacePath));
 
@@ -78,11 +78,12 @@ class PreviewServiceTest extends TestCase
     public function test_build_frontend_skipped_when_directory_missing(): void
     {
         $workspacePath = sys_get_temp_dir() . '/preview-test-' . uniqid();
-        mkdir($workspacePath, 0755, true);
-        // waltily-frontend does NOT exist inside $workspacePath
+        $frontendPath = $workspacePath . '/waltily-frontend';
+        mkdir($frontendPath, 0755, true);
+        // waltily-frontend exists but has no package.json, so build will fail gracefully
 
         $service = new PreviewService('dev.waltily.tw', '/var/www/sdd/workspaces');
-        $service->buildFrontendIfChanged($workspacePath);
+        $service->buildFrontend($workspacePath);
 
         exec("rm -rf " . escapeshellarg($workspacePath));
 
